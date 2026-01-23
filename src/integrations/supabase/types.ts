@@ -14,7 +14,305 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      class_memberships: {
+        Row: {
+          class_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_memberships_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      classes: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          teacher_id: string | null
+          university_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          teacher_id?: string | null
+          university_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          teacher_id?: string | null
+          university_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classes_university_id_fkey"
+            columns: ["university_id"]
+            isOneToOne: false
+            referencedRelation: "universities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          class_id: string | null
+          content: string | null
+          created_at: string
+          file_path: string | null
+          file_size: number | null
+          file_type: string | null
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          class_id?: string | null
+          content?: string | null
+          created_at?: string
+          file_path?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          class_id?: string | null
+          content?: string | null
+          created_at?: string
+          file_path?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          role: string
+          university_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id?: string
+          role?: string
+          university_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          role?: string
+          university_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_university_id_fkey"
+            columns: ["university_id"]
+            isOneToOne: false
+            referencedRelation: "universities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scan_reports: {
+        Row: {
+          created_at: string
+          id: string
+          report_data: Json
+          scan_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          report_data?: Json
+          scan_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          report_data?: Json
+          scan_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scan_reports_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: true
+            referencedRelation: "scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scans: {
+        Row: {
+          ai_detection_score: number | null
+          completed_at: string | null
+          created_at: string
+          document_id: string
+          id: string
+          processing_time_ms: number | null
+          similarity_score: number | null
+          status: string
+          user_id: string
+          word_count: number | null
+        }
+        Insert: {
+          ai_detection_score?: number | null
+          completed_at?: string | null
+          created_at?: string
+          document_id: string
+          id?: string
+          processing_time_ms?: number | null
+          similarity_score?: number | null
+          status?: string
+          user_id: string
+          word_count?: number | null
+        }
+        Update: {
+          ai_detection_score?: number | null
+          completed_at?: string | null
+          created_at?: string
+          document_id?: string
+          id?: string
+          processing_time_ms?: number | null
+          similarity_score?: number | null
+          status?: string
+          user_id?: string
+          word_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scans_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      similarity_matches: {
+        Row: {
+          created_at: string
+          end_position: number | null
+          id: string
+          matched_text: string
+          original_text: string
+          scan_id: string
+          similarity_percentage: number
+          source_title: string | null
+          source_url: string
+          start_position: number | null
+        }
+        Insert: {
+          created_at?: string
+          end_position?: number | null
+          id?: string
+          matched_text: string
+          original_text: string
+          scan_id: string
+          similarity_percentage: number
+          source_title?: string | null
+          source_url: string
+          start_position?: number | null
+        }
+        Update: {
+          created_at?: string
+          end_position?: number | null
+          id?: string
+          matched_text?: string
+          original_text?: string
+          scan_id?: string
+          similarity_percentage?: number
+          source_title?: string | null
+          source_url?: string
+          start_position?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "similarity_matches_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      universities: {
+        Row: {
+          created_at: string
+          domain: string | null
+          id: string
+          logo_url: string | null
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          domain?: string | null
+          id?: string
+          logo_url?: string | null
+          name: string
+        }
+        Update: {
+          created_at?: string
+          domain?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
