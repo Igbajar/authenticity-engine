@@ -10,6 +10,8 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Scan from "./pages/Scan";
 import Results from "./pages/Results";
+import Compare from "./pages/Compare";
+import Admin from "./pages/Admin";
 import UniversityDashboard from "./pages/UniversityDashboard";
 import NotFound from "./pages/NotFound";
 
@@ -33,6 +35,12 @@ const App = () => (
             } />
             <Route path="/results/:scanId" element={
               <ProtectedRoute><Results /></ProtectedRoute>
+            } />
+            <Route path="/compare" element={
+              <ProtectedRoute><Compare /></ProtectedRoute>
+            } />
+            <Route path="/admin" element={
+              <ProtectedRoute><Admin /></ProtectedRoute>
             } />
             <Route path="/university" element={
               <ProtectedRoute><UniversityDashboard /></ProtectedRoute>
