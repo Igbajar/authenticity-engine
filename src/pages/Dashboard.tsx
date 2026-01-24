@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { 
   FileText, Plus, Search, Clock, TrendingUp, 
   AlertCircle, CheckCircle2, Brain, LogOut, Settings,
-  BarChart3, Users, Building2, Loader2
+  BarChart3, Users, Building2, Loader2, ArrowLeftRight, Shield
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -164,10 +164,20 @@ const Dashboard = () => {
           </button>
           
           <div className="flex items-center gap-4">
+            <Button variant="outline" onClick={() => navigate("/compare")}>
+              <ArrowLeftRight className="w-4 h-4 mr-2" />
+              Compare
+            </Button>
             {(profile?.role === "teacher" || profile?.role === "admin") && (
               <Button variant="outline" onClick={() => navigate("/university")}>
                 <Building2 className="w-4 h-4 mr-2" />
                 University
+              </Button>
+            )}
+            {profile?.role === "admin" && (
+              <Button variant="outline" onClick={() => navigate("/admin")}>
+                <Shield className="w-4 h-4 mr-2" />
+                Admin
               </Button>
             )}
             <Button variant="ghost" size="icon" onClick={() => navigate("/settings")}>

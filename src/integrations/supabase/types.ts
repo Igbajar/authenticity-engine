@@ -14,6 +14,100 @@ export type Database = {
   }
   public: {
     Tables: {
+      bibliographies: {
+        Row: {
+          created_at: string
+          entries: Json | null
+          format: string
+          generated_text: string | null
+          id: string
+          scan_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          entries?: Json | null
+          format?: string
+          generated_text?: string | null
+          id?: string
+          scan_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          entries?: Json | null
+          format?: string
+          generated_text?: string | null
+          id?: string
+          scan_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bibliographies_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: true
+            referencedRelation: "scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      citations: {
+        Row: {
+          author: string | null
+          citation_text: string
+          citation_type: string
+          created_at: string
+          id: string
+          is_valid: boolean | null
+          position_end: number | null
+          position_start: number | null
+          scan_id: string
+          source: string | null
+          title: string | null
+          url: string | null
+          year: string | null
+        }
+        Insert: {
+          author?: string | null
+          citation_text: string
+          citation_type: string
+          created_at?: string
+          id?: string
+          is_valid?: boolean | null
+          position_end?: number | null
+          position_start?: number | null
+          scan_id: string
+          source?: string | null
+          title?: string | null
+          url?: string | null
+          year?: string | null
+        }
+        Update: {
+          author?: string | null
+          citation_text?: string
+          citation_type?: string
+          created_at?: string
+          id?: string
+          is_valid?: boolean | null
+          position_end?: number | null
+          position_start?: number | null
+          scan_id?: string
+          source?: string | null
+          title?: string | null
+          url?: string | null
+          year?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "citations_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_memberships: {
         Row: {
           class_id: string
@@ -74,6 +168,57 @@ export type Database = {
             columns: ["university_id"]
             isOneToOne: false
             referencedRelation: "universities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_comparisons: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          document_a_id: string
+          document_b_id: string
+          id: string
+          matching_sections: Json | null
+          similarity_score: number | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          document_a_id: string
+          document_b_id: string
+          id?: string
+          matching_sections?: Json | null
+          similarity_score?: number | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          document_a_id?: string
+          document_b_id?: string
+          id?: string
+          matching_sections?: Json | null
+          similarity_score?: number | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_comparisons_document_a_id_fkey"
+            columns: ["document_a_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_comparisons_document_b_id_fkey"
+            columns: ["document_b_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
             referencedColumns: ["id"]
           },
         ]
@@ -289,6 +434,45 @@ export type Database = {
           },
         ]
       }
+      subscription_tiers: {
+        Row: {
+          created_at: string
+          description: string | null
+          features: Json | null
+          id: string
+          is_active: boolean | null
+          max_scans_per_month: number | null
+          max_words_per_scan: number | null
+          name: string
+          price_monthly: number
+          price_yearly: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          features?: Json | null
+          id?: string
+          is_active?: boolean | null
+          max_scans_per_month?: number | null
+          max_words_per_scan?: number | null
+          name: string
+          price_monthly?: number
+          price_yearly?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          features?: Json | null
+          id?: string
+          is_active?: boolean | null
+          max_scans_per_month?: number | null
+          max_words_per_scan?: number | null
+          name?: string
+          price_monthly?: number
+          price_yearly?: number
+        }
+        Relationships: []
+      }
       universities: {
         Row: {
           created_at: string
@@ -313,15 +497,89 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_subscriptions: {
+        Row: {
+          billing_period_end: string | null
+          billing_period_start: string
+          created_at: string
+          id: string
+          scans_used_this_month: number | null
+          status: string
+          stripe_subscription_id: string | null
+          tier_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          billing_period_end?: string | null
+          billing_period_start?: string
+          created_at?: string
+          id?: string
+          scans_used_this_month?: number | null
+          status?: string
+          stripe_subscription_id?: string | null
+          tier_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          billing_period_end?: string | null
+          billing_period_start?: string
+          created_at?: string
+          id?: string
+          scans_used_this_month?: number | null
+          status?: string
+          stripe_subscription_id?: string | null
+          tier_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_subscriptions_tier_id_fkey"
+            columns: ["tier_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_tiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "user" | "teacher" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -448,6 +706,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["user", "teacher", "admin"],
+    },
   },
 } as const
