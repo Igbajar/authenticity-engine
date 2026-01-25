@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Scan from "./pages/Scan";
+import BatchScan from "./pages/BatchScan";
 import Results from "./pages/Results";
 import Compare from "./pages/Compare";
 import Admin from "./pages/Admin";
@@ -32,6 +33,9 @@ const App = () => (
             } />
             <Route path="/scan" element={
               <ProtectedRoute><Scan /></ProtectedRoute>
+            } />
+            <Route path="/batch-scan" element={
+              <ProtectedRoute><BatchScan /></ProtectedRoute>
             } />
             <Route path="/results/:scanId" element={
               <ProtectedRoute><Results /></ProtectedRoute>
