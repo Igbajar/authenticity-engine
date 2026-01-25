@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { 
   FileText, Plus, Search, Clock, TrendingUp, 
   AlertCircle, CheckCircle2, Brain, LogOut, Settings,
-  BarChart3, Users, Building2, Loader2, ArrowLeftRight, Shield
+  BarChart3, Users, Building2, Loader2, ArrowLeftRight, Shield, Files
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -268,6 +268,10 @@ const Dashboard = () => {
                   className="h-10 pl-10 pr-4 rounded-lg bg-muted/50 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50"
                 />
               </div>
+              <Button variant="outline" onClick={() => navigate("/batch-scan")}>
+                <Files className="w-4 h-4 mr-2" />
+                Batch Scan
+              </Button>
               <Button variant="hero" onClick={() => navigate("/scan")}>
                 <Plus className="w-4 h-4 mr-2" />
                 New Scan
