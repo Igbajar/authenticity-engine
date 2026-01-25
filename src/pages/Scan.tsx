@@ -1,8 +1,8 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Upload, FileText, Link, X, Loader2, CheckCircle2, Brain, Search, FileCheck } from "lucide-react";
+import { Upload, FileText, Link, X, Loader2, CheckCircle2, Brain, Search, FileCheck, Globe } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +18,9 @@ const Scan = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [textInput, setTextInput] = useState("");
+  const [urlInput, setUrlInput] = useState("");
+  const [urlContent, setUrlContent] = useState<{ content: string; title: string } | null>(null);
+  const [isFetchingUrl, setIsFetchingUrl] = useState(false);
   const [activeTab, setActiveTab] = useState<"upload" | "paste" | "url">("upload");
   const [isScanning, setIsScanning] = useState(false);
   const [currentStage, setCurrentStage] = useState(0);
@@ -82,6 +85,54 @@ const Scan = () => {
     });
   };
 
+  const fetchUrlContent = async () => {
+    if (!urlInput.trim()) {
+      toast({
+        title: "URL required",
+        description: "Please enter a URL to fetch",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsFetchingUrl(true);
+    try {
+      const response = await supabase.functions.invoke("firecrawl-scrape", {
+        body: { url: urlInput },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Failed to fetch URL");
+      }
+
+      if (!response.data.success) {
+        throw new Error(response.data.error || "Failed to scrape content");
+      }
+
+      const content = response.data.content;
+      const title = response.data.title;
+
+      if (!content || content.trim().length < 50) {
+        throw new Error("Could not extract enough content from this URL");
+      }
+
+      setUrlContent({ content, title });
+      toast({
+        title: "Content fetched",
+        description: `Extracted content from "${title}"`,
+      });
+    } catch (error) {
+      console.error("Error fetching URL:", error);
+      toast({
+        title: "Error fetching URL",
+        description: error instanceof Error ? error.message : "Failed to fetch content from URL",
+        variant: "destructive",
+      });
+    } finally {
+      setIsFetchingUrl(false);
+    }
+  };
+
   const handleScan = async () => {
     if (!user) {
       toast({
@@ -110,6 +161,9 @@ const Scan = () => {
       }
     } else if (activeTab === "paste") {
       content = textInput;
+    } else if (activeTab === "url" && urlContent) {
+      content = urlContent.content;
+      fileName = urlContent.title;
     }
 
     if (content.split(/\s+/).filter(Boolean).length < 50) {
@@ -429,19 +483,65 @@ const Scan = () => {
 
                 {activeTab === "url" && (
                   <div>
-                    <div className="flex gap-3">
-                      <input
-                        type="url"
-                        placeholder="https://example.com/document.pdf"
-                        className="flex-1 h-12 px-4 rounded-xl bg-muted/50 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50"
-                      />
-                      <Button variant="secondary">
-                        Fetch
-                      </Button>
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-3">
-                      Enter a direct link to a document or web page to analyze
-                    </p>
+                    {urlContent ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3 p-4 bg-success/10 border border-success/30 rounded-xl">
+                          <div className="w-10 h-10 rounded-xl bg-success/20 flex items-center justify-center">
+                            <Globe className="w-5 h-5 text-success" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-foreground truncate">{urlContent.title}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {urlContent.content.split(/\s+/).filter(Boolean).length} words extracted
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setUrlContent(null);
+                              setUrlInput("");
+                            }}
+                            className="p-2 hover:bg-muted rounded-lg transition-colors"
+                          >
+                            <X className="w-5 h-5 text-muted-foreground" />
+                          </button>
+                        </div>
+                        <div className="p-4 bg-muted/50 rounded-xl max-h-48 overflow-y-auto">
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-6">
+                            {urlContent.content.substring(0, 500)}...
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex gap-3">
+                          <input
+                            type="url"
+                            value={urlInput}
+                            onChange={(e) => setUrlInput(e.target.value)}
+                            placeholder="https://example.com/article"
+                            className="flex-1 h-12 px-4 rounded-xl bg-muted/50 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50"
+                            disabled={isFetchingUrl}
+                          />
+                          <Button 
+                            variant="secondary" 
+                            onClick={fetchUrlContent}
+                            disabled={isFetchingUrl || !urlInput.trim()}
+                          >
+                            {isFetchingUrl ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Fetching...
+                              </>
+                            ) : (
+                              "Fetch"
+                            )}
+                          </Button>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-3">
+                          Enter a URL to a web page or article to analyze its content
+                        </p>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -451,7 +551,7 @@ const Scan = () => {
                     variant="hero"
                     size="xl"
                     onClick={handleScan}
-                    disabled={isScanning || (!file && !textInput.trim())}
+                    disabled={isScanning || (!file && !textInput.trim() && !urlContent)}
                     className="min-w-[200px]"
                   >
                     Start Analysis
