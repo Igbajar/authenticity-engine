@@ -62,7 +62,9 @@ const Scan = () => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
-        const content = e.target?.result as string;
+        let content = e.target?.result as string;
+        // Remove null bytes and other problematic characters that can't be stored in PostgreSQL
+        content = content.replace(/\u0000/g, '').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
         resolve(content);
       };
       reader.onerror = () => reject(new Error("Failed to read file"));
