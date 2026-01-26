@@ -1,13 +1,19 @@
 import { useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Upload, FileText, Link, X, Loader2 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 const UploadSection = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
   const [textInput, setTextInput] = useState("");
   const [activeTab, setActiveTab] = useState<"upload" | "paste" | "url">("upload");
+
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -36,12 +42,16 @@ const UploadSection = () => {
   };
 
   const handleScan = () => {
-    setIsScanning(true);
-    // Simulate scanning
-    setTimeout(() => {
-      setIsScanning(false);
-      // Navigate to results would happen here
-    }, 3000);
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to scan documents",
+      });
+      navigate("/auth");
+      return;
+    }
+    // Navigate to the scan page which has the actual scanning functionality
+    navigate("/scan");
   };
 
   const tabs = [
@@ -187,17 +197,10 @@ const UploadSection = () => {
                   variant="hero"
                   size="xl"
                   onClick={handleScan}
-                  disabled={isScanning || (!file && !textInput.trim())}
+                  disabled={!file && !textInput.trim()}
                   className="min-w-[200px]"
                 >
-                  {isScanning ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Scanning...
-                    </>
-                  ) : (
-                    "Start Analysis"
-                  )}
+                  Start Analysis
                 </Button>
               </div>
             </div>
