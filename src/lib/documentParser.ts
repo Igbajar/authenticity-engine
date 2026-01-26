@@ -1,37 +1,13 @@
-import mammoth from "mammoth";
-import * as pdfjsLib from "pdfjs-dist";
-
-// Set up the PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs`;
+import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Extract text content from various document formats
+ * Extract text content from various document formats using backend OCR
  */
 export async function extractTextFromFile(file: File): Promise<string> {
-  const fileType = file.type;
   const fileName = file.name.toLowerCase();
+  const fileType = file.type;
 
-  // Handle DOCX files
-  if (
-    fileType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-    fileName.endsWith(".docx")
-  ) {
-    return extractTextFromDocx(file);
-  }
-
-  // Handle DOC files (older Word format)
-  if (fileType === "application/msword" || fileName.endsWith(".doc")) {
-    // DOC files are harder to parse - try as text fallback
-    console.warn("DOC files are not fully supported, attempting text extraction");
-    return extractAsPlainText(file);
-  }
-
-  // Handle PDF files
-  if (fileType === "application/pdf" || fileName.endsWith(".pdf")) {
-    return extractTextFromPdf(file);
-  }
-
-  // Handle plain text files
+  // For plain text files, read directly in browser
   if (
     fileType === "text/plain" ||
     fileName.endsWith(".txt") ||
@@ -40,85 +16,58 @@ export async function extractTextFromFile(file: File): Promise<string> {
     return extractAsPlainText(file);
   }
 
-  // Fallback: try to read as text
+  // For PDF, DOCX, DOC - use backend OCR-capable parsing
+  if (
+    fileType === "application/pdf" ||
+    fileName.endsWith(".pdf") ||
+    fileType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    fileName.endsWith(".docx") ||
+    fileType === "application/msword" ||
+    fileName.endsWith(".doc")
+  ) {
+    return extractViaBackend(file);
+  }
+
+  // Fallback: try plain text extraction
   return extractAsPlainText(file);
 }
 
 /**
- * Extract text from DOCX files using mammoth
+ * Extract text using backend OCR service
  */
-async function extractTextFromDocx(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    
-    reader.onload = async (e) => {
-      try {
-        const arrayBuffer = e.target?.result as ArrayBuffer;
-        const result = await mammoth.extractRawText({ arrayBuffer });
-        
-        if (!result.value || result.value.trim().length === 0) {
-          reject(new Error("Could not extract text from DOCX file. The document may be empty or corrupted."));
-          return;
-        }
-        
-        // Clean the text
-        const cleanedText = cleanText(result.value);
-        resolve(cleanedText);
-      } catch (error) {
-        console.error("Error extracting DOCX content:", error);
-        reject(new Error("Failed to parse DOCX file. Please ensure the file is not corrupted."));
-      }
-    };
-    
-    reader.onerror = () => reject(new Error("Failed to read DOCX file"));
-    reader.readAsArrayBuffer(file);
-  });
-}
+async function extractViaBackend(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file);
 
-/**
- * Extract text from PDF files using pdf.js
- */
-async function extractTextFromPdf(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    
-    reader.onload = async (e) => {
-      try {
-        const arrayBuffer = e.target?.result as ArrayBuffer;
-        const typedArray = new Uint8Array(arrayBuffer);
-        
-        const pdf = await pdfjsLib.getDocument({ data: typedArray }).promise;
-        const numPages = pdf.numPages;
-        const textParts: string[] = [];
-        
-        for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-          const page = await pdf.getPage(pageNum);
-          const textContent = await page.getTextContent();
-          const pageText = textContent.items
-            .map((item: any) => item.str)
-            .join(" ");
-          textParts.push(pageText);
-        }
-        
-        const fullText = textParts.join("\n\n");
-        
-        if (!fullText || fullText.trim().length === 0) {
-          reject(new Error("Could not extract text from PDF. The document may be scanned or image-based."));
-          return;
-        }
-        
-        // Clean the text
-        const cleanedText = cleanText(fullText);
-        resolve(cleanedText);
-      } catch (error) {
-        console.error("Error extracting PDF content:", error);
-        reject(new Error("Failed to parse PDF file. Please ensure the file is not corrupted."));
-      }
-    };
-    
-    reader.onerror = () => reject(new Error("Failed to read PDF file"));
-    reader.readAsArrayBuffer(file);
+  const { data: session } = await supabase.auth.getSession();
+  
+  if (!session.session?.access_token) {
+    throw new Error("Authentication required");
+  }
+
+  // Get the Supabase URL from the client
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  
+  const response = await fetch(`${supabaseUrl}/functions/v1/parse-document`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${session.session.access_token}`,
+    },
+    body: formData,
   });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to parse document");
+  }
+
+  const result = await response.json();
+  
+  if (!result.success || !result.text) {
+    throw new Error("Could not extract text from document");
+  }
+
+  return result.text;
 }
 
 /**

@@ -12,6 +12,105 @@ interface AnalysisRequest {
   scanId: string;
 }
 
+interface SearchResult {
+  url: string;
+  title: string;
+  snippet: string;
+  matchedText?: string;
+  similarity?: number;
+}
+
+// Extract key phrases from content for search queries
+function extractSearchQueries(content: string): string[] {
+  const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 20);
+  const queries: string[] = [];
+  
+  // Take sentences from different parts of the document
+  const step = Math.max(1, Math.floor(sentences.length / 5));
+  for (let i = 0; i < sentences.length && queries.length < 5; i += step) {
+    const sentence = sentences[i].trim();
+    if (sentence.length >= 30 && sentence.length <= 200) {
+      // Clean and quote the sentence for exact match search
+      const cleaned = sentence.replace(/['"]/g, '').substring(0, 150);
+      queries.push(`"${cleaned}"`);
+    }
+  }
+  
+  return queries;
+}
+
+// Search the web for matching content using Firecrawl
+async function searchWebForMatches(
+  queries: string[], 
+  apiKey: string
+): Promise<SearchResult[]> {
+  const allResults: SearchResult[] = [];
+  
+  for (const query of queries) {
+    try {
+      console.log(`Searching for: ${query.substring(0, 50)}...`);
+      
+      const response = await fetch('https://api.firecrawl.dev/v1/search', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: query,
+          limit: 3,
+          scrapeOptions: {
+            formats: ['markdown']
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        console.warn(`Search failed for query: ${response.status}`);
+        continue;
+      }
+
+      const data = await response.json();
+      
+      if (data.data && Array.isArray(data.data)) {
+        for (const result of data.data) {
+          // Skip if we already have this URL
+          if (allResults.some(r => r.url === result.url)) continue;
+          
+          allResults.push({
+            url: result.url || '',
+            title: result.title || 'Unknown Source',
+            snippet: result.description || result.markdown?.substring(0, 300) || '',
+            matchedText: query.replace(/"/g, ''),
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+    }
+  }
+  
+  return allResults;
+}
+
+// Calculate similarity between two texts
+function calculateTextSimilarity(text1: string, text2: string): number {
+  const words1 = text1.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+  const words2 = text2.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+  
+  if (words1.length === 0 || words2.length === 0) return 0;
+  
+  const set1 = new Set(words1);
+  const set2 = new Set(words2);
+  
+  let matches = 0;
+  for (const word of set1) {
+    if (set2.has(word)) matches++;
+  }
+  
+  return (matches / Math.max(set1.size, set2.size)) * 100;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -29,6 +128,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
+    const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -59,48 +159,73 @@ serve(async (req) => {
       .eq('id', scanId);
 
     const startTime = Date.now();
+    let webSearchResults: SearchResult[] = [];
 
-    // Use Lovable AI to analyze the document for plagiarism patterns
-    const analysisPrompt = `You are an advanced plagiarism and AI content detection system. Analyze the following text and provide a detailed analysis.
+    // Step 1: Web search for plagiarism detection (if Firecrawl is configured)
+    if (firecrawlApiKey) {
+      console.log('Performing real web search for plagiarism detection...');
+      const searchQueries = extractSearchQueries(content);
+      console.log(`Generated ${searchQueries.length} search queries`);
+      
+      webSearchResults = await searchWebForMatches(searchQueries, firecrawlApiKey);
+      console.log(`Found ${webSearchResults.length} potential matches from web search`);
+      
+      // Calculate similarity scores for each result
+      for (const result of webSearchResults) {
+        if (result.snippet && result.matchedText) {
+          result.similarity = calculateTextSimilarity(result.matchedText, result.snippet);
+        }
+      }
+    } else {
+      console.log('Firecrawl API key not configured, skipping web search');
+    }
+
+    // Step 2: AI analysis with context from web search
+    const webSearchContext = webSearchResults.length > 0
+      ? `\n\nWEB SEARCH RESULTS (potential matches found):\n${webSearchResults.map((r, i) => 
+          `${i + 1}. Source: ${r.title} (${r.url})\n   Matched text: "${r.matchedText}"\n   Source snippet: "${r.snippet?.substring(0, 200)}..."`
+        ).join('\n\n')}`
+      : '\n\nNo external sources were found matching this content in web search.';
+
+    const analysisPrompt = `You are an advanced plagiarism and AI content detection system. Analyze the following text with the provided web search results.
 
 TEXT TO ANALYZE:
 """
 ${content.substring(0, 15000)}
 """
+${webSearchContext}
 
-Provide your analysis in the following JSON format:
+Based on both your analysis and the web search results, provide your assessment in the following JSON format:
 {
-  "similarityScore": <number 0-100 representing overall similarity/plagiarism percentage>,
+  "similarityScore": <number 0-100 representing overall similarity/plagiarism percentage - consider web search results>,
   "aiDetectionScore": <number 0-100 representing likelihood of AI-generated content>,
   "wordCount": <total word count>,
   "analysis": {
-    "overallAssessment": "<brief assessment of originality>",
+    "overallAssessment": "<brief assessment of originality based on web search and content analysis>",
     "writingStyle": "<analysis of writing style, consistency, complexity>",
     "aiIndicators": ["<list of AI writing indicators found>"],
-    "originalityIndicators": ["<list of indicators suggesting original human writing>"]
+    "originalityIndicators": ["<list of indicators suggesting original human writing>"],
+    "webSearchSummary": "<summary of what the web search revealed about potential sources>"
   },
   "potentialMatches": [
-    {
-      "matchedText": "<exact text that appears potentially plagiarized>",
-      "sourceType": "<academic paper|website|book|news article|wikipedia>",
-      "sourceTitle": "<likely source title>",
-      "sourceUrl": "<hypothetical source URL>",
-      "similarityPercentage": <0-100>,
-      "explanation": "<why this text appears non-original>"
-    }
+    ${webSearchResults.length > 0 ? webSearchResults.slice(0, 5).map(r => `{
+      "matchedText": "${(r.matchedText || '').replace(/"/g, '\\"').substring(0, 200)}",
+      "sourceType": "website",
+      "sourceTitle": "${(r.title || 'Unknown').replace(/"/g, '\\"')}",
+      "sourceUrl": "${r.url}",
+      "similarityPercentage": ${Math.round(r.similarity || 0)},
+      "explanation": "Found via web search"
+    }`).join(',\n    ') : ''}
   ],
   "suggestions": ["<list of suggestions to improve originality>"]
 }
 
-Be thorough but fair in your analysis. Look for:
-1. Common phrases that appear in many sources
-2. Technical definitions that might be copied
-3. Unusually formal or inconsistent writing patterns
-4. Patterns typical of AI-generated content (repetitive structures, excessive hedging, etc.)
-5. Proper citations or attribution (their presence is positive)
+IMPORTANT: 
+- If web search found matches, incorporate them into potentialMatches and adjust similarityScore accordingly
+- Be thorough in AI detection - look for repetitive structures, excessive hedging, unnatural transitions
+- Return ONLY valid JSON, no additional text`;
 
-Return ONLY valid JSON, no additional text.`;
-
+    console.log('Calling AI for analysis...');
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -108,7 +233,7 @@ Return ONLY valid JSON, no additional text.`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: 'You are an expert plagiarism and AI content detection system. Always respond with valid JSON only.' },
           { role: 'user', content: analysisPrompt }
@@ -152,23 +277,40 @@ Return ONLY valid JSON, no additional text.`;
       }
     } catch (parseError) {
       console.error('Failed to parse AI response:', analysisText);
-      // Fallback analysis
+      // Fallback analysis with web search results
+      const webMatchScore = webSearchResults.length > 0 
+        ? Math.min(webSearchResults.reduce((acc, r) => acc + (r.similarity || 0), 0) / webSearchResults.length, 100)
+        : 0;
+        
       analysisResult = {
-        similarityScore: Math.floor(Math.random() * 30),
+        similarityScore: Math.round(webMatchScore),
         aiDetectionScore: Math.floor(Math.random() * 25),
         wordCount: content.split(/\s+/).length,
         analysis: {
-          overallAssessment: 'Analysis completed with limited data',
+          overallAssessment: webSearchResults.length > 0 
+            ? `Found ${webSearchResults.length} potential online sources` 
+            : 'Analysis completed with limited data',
           writingStyle: 'Unable to fully assess',
           aiIndicators: [],
-          originalityIndicators: ['Document processed successfully']
+          originalityIndicators: ['Document processed successfully'],
+          webSearchSummary: webSearchResults.length > 0 
+            ? `Found ${webSearchResults.length} potential matches online`
+            : 'No online matches found'
         },
-        potentialMatches: [],
+        potentialMatches: webSearchResults.slice(0, 5).map(r => ({
+          matchedText: r.matchedText || '',
+          sourceType: 'website',
+          sourceTitle: r.title,
+          sourceUrl: r.url,
+          similarityPercentage: Math.round(r.similarity || 0),
+          explanation: 'Found via web search'
+        })),
         suggestions: ['Review document for proper citations']
       };
     }
 
     const processingTime = Date.now() - startTime;
+    console.log(`Analysis completed in ${processingTime}ms`);
 
     // Store similarity matches
     if (analysisResult.potentialMatches && analysisResult.potentialMatches.length > 0) {
@@ -213,6 +355,7 @@ Return ONLY valid JSON, no additional text.`;
         aiDetectionScore: analysisResult.aiDetectionScore,
         wordCount: analysisResult.wordCount,
         processingTimeMs: processingTime,
+        sourcesChecked: webSearchResults.length,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
