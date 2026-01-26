@@ -6,7 +6,7 @@ import { Upload, FileText, Link, X, Loader2, CheckCircle2, Brain, Search, FileCh
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-
+import { extractTextFromFile } from "@/lib/documentParser";
 const scanStages = [
   { id: "upload", label: "Uploading document", icon: Upload },
   { id: "sources", label: "Checking sources", icon: Search },
@@ -59,17 +59,8 @@ const Scan = () => {
   };
 
   const readFileContent = async (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        let content = e.target?.result as string;
-        // Remove null bytes and other problematic characters that can't be stored in PostgreSQL
-        content = content.replace(/\u0000/g, '').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
-        resolve(content);
-      };
-      reader.onerror = () => reject(new Error("Failed to read file"));
-      reader.readAsText(file);
-    });
+    // Use the document parser to properly extract text from DOCX, PDF, etc.
+    return extractTextFromFile(file);
   };
 
   const simulateStageProgress = (stageIndex: number): Promise<void> => {
