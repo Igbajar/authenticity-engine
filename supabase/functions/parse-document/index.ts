@@ -60,22 +60,67 @@ serve(async (req) => {
       extractedText = await file.text();
       console.log('Extracted plain text directly');
     } else if (
-      fileType === 'application/pdf' || 
-      fileName.endsWith('.pdf') ||
       fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-      fileName.endsWith('.docx') ||
-      fileType === 'application/msword' ||
-      fileName.endsWith('.doc')
+      fileName.endsWith('.docx')
     ) {
-      // For PDF and DOCX files, use AI to extract text (handles OCR for scanned docs)
+      // DOCX files are ZIP archives containing XML - parse them directly
+      console.log('Parsing DOCX file...');
+      const arrayBuffer = await file.arrayBuffer();
+      
+      try {
+        // Use fflate for decompression (lightweight, works in Deno)
+        const { unzipSync } = await import("https://esm.sh/fflate@0.8.2");
+        const uint8Array = new Uint8Array(arrayBuffer);
+        const unzipped = unzipSync(uint8Array);
+        
+        // Find and parse document.xml (main content)
+        const documentXml = unzipped['word/document.xml'];
+        if (!documentXml) {
+          throw new Error('Invalid DOCX: missing document.xml');
+        }
+        
+        // Decode XML content
+        const decoder = new TextDecoder();
+        const xmlContent = decoder.decode(documentXml);
+        
+        // Extract text from XML (simple regex approach for w:t elements)
+        const textMatches = xmlContent.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
+        const paragraphs: string[] = [];
+        let currentParagraph = '';
+        
+        // Split by paragraph markers
+        const parts = xmlContent.split(/<w:p[^>]*>/);
+        for (const part of parts) {
+          const texts = part.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
+          if (texts.length > 0) {
+            const paragraphText = texts
+              .map(t => t.replace(/<w:t[^>]*>([^<]*)<\/w:t>/, '$1'))
+              .join('');
+            if (paragraphText.trim()) {
+              paragraphs.push(paragraphText);
+            }
+          }
+        }
+        
+        extractedText = paragraphs.join('\n\n');
+        console.log(`Extracted ${extractedText.length} characters from DOCX`);
+      } catch (e) {
+        console.error('DOCX parsing error:', e);
+        throw new Error('Failed to parse DOCX file');
+      }
+    } else if (
+      fileType === 'application/pdf' || 
+      fileName.endsWith('.pdf')
+    ) {
+      // For PDF files, use AI to extract text (handles OCR for scanned docs)
       const arrayBuffer = await file.arrayBuffer();
 
       // Convert to base64 safely (avoid spreading/apply which can overflow the stack)
       const base64 = base64Encode(arrayBuffer);
       
-      console.log('Using AI for document extraction with OCR support...');
+      console.log('Using AI for PDF extraction with OCR support...');
       
-      // Use a vision-capable model to extract text from documents (including scanned/image-based)
+      // Use a vision-capable model to extract text from PDFs (including scanned/image-based)
       const extractionResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -87,7 +132,7 @@ serve(async (req) => {
           messages: [
             {
               role: 'system',
-              content: `You are a document text extraction system. Extract ALL text content from the provided document.
+              content: `You are a document text extraction system. Extract ALL text content from the provided PDF document.
               
 For scanned or image-based documents, perform OCR to extract the text.
 For text-based documents, extract the text content preserving paragraphs and structure.
@@ -100,12 +145,12 @@ If you cannot extract any text, return "ERROR: Could not extract text from docum
               content: [
                 {
                   type: 'text',
-                  text: `Extract all text from this ${fileType} document named "${file.name}". Return only the raw text content.`
+                  text: `Extract all text from this PDF document named "${file.name}". Return only the raw text content.`
                 },
                 {
                   type: 'image_url',
                   image_url: {
-                    url: `data:${fileType};base64,${base64}`
+                    url: `data:application/pdf;base64,${base64}`
                   }
                 }
               ]
@@ -119,7 +164,7 @@ If you cannot extract any text, return "ERROR: Could not extract text from docum
       if (!extractionResponse.ok) {
         const errorText = await extractionResponse.text();
         console.error('AI extraction error:', extractionResponse.status, errorText);
-        throw new Error('Failed to extract text from document');
+        throw new Error('Failed to extract text from PDF');
       }
 
       const extractionData = await extractionResponse.json();
@@ -130,6 +175,17 @@ If you cannot extract any text, return "ERROR: Could not extract text from docum
       }
       
       console.log(`Extracted ${extractedText.length} characters using AI OCR`);
+    } else if (
+      fileType === 'application/msword' ||
+      fileName.endsWith('.doc')
+    ) {
+      // Old .doc format is not easily parseable - inform user
+      return new Response(
+        JSON.stringify({ 
+          error: 'Old .doc format is not supported. Please convert to .docx or PDF.' 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     } else {
       // Try to read as text for unknown types
       try {
