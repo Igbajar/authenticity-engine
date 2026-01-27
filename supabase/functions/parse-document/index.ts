@@ -68,7 +68,16 @@ serve(async (req) => {
     ) {
       // For PDF and DOCX files, use AI to extract text (handles OCR for scanned docs)
       const arrayBuffer = await file.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      
+      // Convert to base64 in chunks to avoid stack overflow with large files
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const chunkSize = 32768; // 32KB chunks
+      let binaryString = '';
+      for (let i = 0; i < uint8Array.length; i += chunkSize) {
+        const chunk = uint8Array.slice(i, i + chunkSize);
+        binaryString += String.fromCharCode.apply(null, Array.from(chunk));
+      }
+      const base64 = btoa(binaryString);
       
       console.log('Using AI for document extraction with OCR support...');
       
