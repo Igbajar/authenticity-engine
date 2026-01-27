@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { 
   Upload, FileText, X, Loader2, CheckCircle2, Brain, Search, 
-  FileCheck, AlertCircle, ArrowLeft, Files, Trash2 
+  FileCheck, AlertCircle, ArrowLeft, Files, Trash2, GitCompare 
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { extractTextFromFile } from "@/lib/documentParser";
 
 interface FileWithStatus {
   file: File;
@@ -16,11 +17,21 @@ interface FileWithStatus {
   status: "pending" | "uploading" | "analyzing" | "complete" | "error";
   progress: number;
   scanId?: string;
+  documentId?: string;
+  content?: string;
   error?: string;
   results?: {
     similarityScore: number;
     aiScore: number;
   };
+}
+
+interface InternalMatch {
+  docAId: string;
+  docAName: string;
+  docBId: string;
+  docBName: string;
+  similarity: number;
 }
 
 const scanStages = [
@@ -35,6 +46,8 @@ const BatchScan = () => {
   const [files, setFiles] = useState<FileWithStatus[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
+  const [isComparing, setIsComparing] = useState(false);
+  const [internalMatches, setInternalMatches] = useState<InternalMatch[]>([]);
 
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -96,15 +109,8 @@ const BatchScan = () => {
   };
 
   const readFileContent = async (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const content = e.target?.result as string;
-        resolve(content);
-      };
-      reader.onerror = () => reject(new Error("Failed to read file"));
-      reader.readAsText(file);
-    });
+    // Use the document parser that properly handles DOCX, PDF via backend OCR
+    return extractTextFromFile(file);
   };
 
   const updateFileStatus = (id: string, updates: Partial<FileWithStatus>) => {
@@ -190,6 +196,8 @@ const BatchScan = () => {
       updateFileStatus(id, { 
         status: "complete", 
         progress: 100,
+        documentId: docData.id,
+        content: content,
         results: {
           similarityScore: scanResult?.similarity_score || 0,
           aiScore: scanResult?.ai_detection_score || 0,
@@ -244,6 +252,72 @@ const BatchScan = () => {
       title: "Batch scan complete",
       description: `${successCount} successful, ${errorCount} failed`,
     });
+  };
+
+  // Calculate text similarity using Jaccard index
+  const calculateSimilarity = (text1: string, text2: string): number => {
+    const words1 = new Set(text1.toLowerCase().split(/\s+/).filter(w => w.length > 3));
+    const words2 = new Set(text2.toLowerCase().split(/\s+/).filter(w => w.length > 3));
+    
+    const intersection = new Set([...words1].filter(x => words2.has(x)));
+    const union = new Set([...words1, ...words2]);
+    
+    return union.size > 0 ? (intersection.size / union.size) * 100 : 0;
+  };
+
+  const compareDocumentsInternally = async () => {
+    const completedFiles = files.filter(f => f.status === "complete" && f.content);
+    
+    if (completedFiles.length < 2) {
+      toast({
+        title: "Not enough documents",
+        description: "You need at least 2 successfully scanned documents to compare",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsComparing(true);
+    const matches: InternalMatch[] = [];
+
+    // Compare each document pair
+    for (let i = 0; i < completedFiles.length; i++) {
+      for (let j = i + 1; j < completedFiles.length; j++) {
+        const docA = completedFiles[i];
+        const docB = completedFiles[j];
+        
+        if (docA.content && docB.content) {
+          const similarity = calculateSimilarity(docA.content, docB.content);
+          
+          if (similarity >= 10) { // Only include matches above 10%
+            matches.push({
+              docAId: docA.documentId || docA.id,
+              docAName: docA.file.name,
+              docBId: docB.documentId || docB.id,
+              docBName: docB.file.name,
+              similarity: Math.round(similarity * 10) / 10,
+            });
+          }
+        }
+      }
+    }
+
+    // Sort by similarity descending
+    matches.sort((a, b) => b.similarity - a.similarity);
+    setInternalMatches(matches);
+    setIsComparing(false);
+
+    if (matches.length > 0) {
+      toast({
+        title: "Internal comparison complete",
+        description: `Found ${matches.length} document pair${matches.length !== 1 ? "s" : ""} with similarities`,
+      });
+    } else {
+      toast({
+        title: "No internal matches found",
+        description: "All documents appear to be unique from each other",
+      });
+    }
   };
 
   const getStatusIcon = (status: FileWithStatus["status"]) => {
@@ -506,16 +580,72 @@ const BatchScan = () => {
                 </div>
               )}
 
+              {/* Internal Comparison Results */}
+              {internalMatches.length > 0 && (
+                <div className="p-6 border-t border-border">
+                  <div className="flex items-center gap-3 mb-4">
+                    <GitCompare className="w-5 h-5 text-accent" />
+                    <h3 className="font-medium text-foreground">Internal Document Comparison</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {internalMatches.map((match, idx) => (
+                      <div 
+                        key={idx}
+                        className={`p-4 rounded-xl border ${
+                          match.similarity > 50 ? "bg-destructive/10 border-destructive/30" :
+                          match.similarity > 25 ? "bg-warning/10 border-warning/30" :
+                          "bg-muted/50 border-border"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                            <span className="text-sm font-medium truncate">{match.docAName}</span>
+                            <span className="text-muted-foreground">↔</span>
+                            <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                            <span className="text-sm font-medium truncate">{match.docBName}</span>
+                          </div>
+                          <span className={`font-bold shrink-0 ml-3 ${
+                            match.similarity > 50 ? "text-destructive" :
+                            match.similarity > 25 ? "text-warning" :
+                            "text-muted-foreground"
+                          }`}>
+                            {match.similarity}% similar
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Completed Actions */}
               {!isProcessing && completedCount > 0 && !files.some(f => f.status === "pending") && (
                 <div className="p-6 border-t border-border bg-muted/30">
-                  <div className="flex justify-center gap-4">
-                    <Button variant="outline" onClick={clearAllFiles}>
-                      Scan More Documents
-                    </Button>
-                    <Button variant="hero" onClick={() => navigate("/dashboard")}>
-                      View Dashboard
-                    </Button>
+                  <div className="flex flex-col items-center gap-4">
+                    {completedCount >= 2 && (
+                      <Button 
+                        variant="outline" 
+                        onClick={compareDocumentsInternally}
+                        disabled={isComparing}
+                        className="w-full max-w-xs"
+                      >
+                        {isComparing ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <GitCompare className="w-4 h-4 mr-2" />
+                        )}
+                        Compare Documents Internally
+                      </Button>
+                    )}
+                    <div className="flex gap-4">
+                      <Button variant="outline" onClick={clearAllFiles}>
+                        Scan More Documents
+                      </Button>
+                      <Button variant="hero" onClick={() => navigate("/dashboard")}>
+                        View Dashboard
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}
