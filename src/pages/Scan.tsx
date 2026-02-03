@@ -4,9 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Upload, FileText, Link, X, Loader2, CheckCircle2, Brain, Search, FileCheck, Globe } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useAppSettings } from "@/hooks/useAppSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { extractTextFromFile } from "@/lib/documentParser";
+import ScanProgressRealtime from "@/components/ScanProgressRealtime";
+
 const scanStages = [
   { id: "upload", label: "Uploading document", icon: Upload },
   { id: "sources", label: "Checking sources", icon: Search },
@@ -29,8 +32,10 @@ const Scan = () => {
   const [scanId, setScanId] = useState<string | null>(null);
 
   const { user } = useAuth();
+  const { settings } = useAppSettings();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [useRealtimeProgress, setUseRealtimeProgress] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -277,9 +282,9 @@ const Scan = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <button onClick={() => navigate("/")} className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-accent/80 flex items-center justify-center">
-              <span className="text-white font-bold text-lg">O</span>
+              <span className="text-white font-bold text-lg">R</span>
             </div>
-            <span className="font-serif text-xl text-foreground">OriginalityAI</span>
+            <span className="font-serif text-xl text-foreground">{settings.app_name}</span>
           </button>
           <Button variant="outline" onClick={() => navigate("/dashboard")}>
             Dashboard

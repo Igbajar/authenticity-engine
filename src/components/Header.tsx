@@ -3,6 +3,7 @@ import { FileSearch, Menu, X, User, LogOut, LayoutDashboard, ChevronDown } from 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useAppSettings } from "@/hooks/useAppSettings";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +15,7 @@ import {
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, signOut, loading } = useAuth();
+  const { settings } = useAppSettings();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -31,7 +33,7 @@ const Header = () => {
               <FileSearch className="w-5 h-5 text-primary-foreground" />
             </div>
             <span className="font-serif text-xl font-medium text-foreground">
-              Originality<span className="text-accent">AI</span>
+              {settings.app_name}
             </span>
           </Link>
 

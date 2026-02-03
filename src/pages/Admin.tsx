@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { 
   ArrowLeft, Users, CreditCard, BarChart3, Settings,
   Search, MoreVertical, Shield, Loader2, TrendingUp,
-  FileText, Brain, AlertCircle, CheckCircle2, X
+  FileText, Brain, AlertCircle, CheckCircle2, X, Cog
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -24,6 +24,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import AdminSettings from "@/components/AdminSettings";
 
 interface User {
   id: string;
@@ -64,7 +65,7 @@ const Admin = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<"users" | "subscriptions" | "analytics">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "subscriptions" | "analytics" | "settings">("users");
   const [users, setUsers] = useState<User[]>([]);
   const [tiers, setTiers] = useState<SubscriptionTier[]>([]);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
@@ -248,6 +249,7 @@ const Admin = () => {
     { id: "users", label: "Users", icon: Users },
     { id: "subscriptions", label: "Subscriptions", icon: CreditCard },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
+    { id: "settings", label: "Settings", icon: Cog },
   ] as const;
 
   if (loading || !isAdmin) {
@@ -542,6 +544,11 @@ const Admin = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Settings Tab */}
+        {activeTab === "settings" && (
+          <AdminSettings />
         )}
       </main>
 

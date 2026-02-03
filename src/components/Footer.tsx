@@ -1,6 +1,9 @@
 import { FileSearch } from "lucide-react";
+import { useAppSettings } from "@/hooks/useAppSettings";
 
 const Footer = () => {
+  const { settings } = useAppSettings();
+  
   const links = {
     Product: ["Features", "Pricing", "API", "Integrations", "Changelog"],
     Solutions: ["Universities", "Publishers", "Enterprises", "Researchers", "Students"],
@@ -20,7 +23,7 @@ const Footer = () => {
                 <FileSearch className="w-5 h-5 text-accent-foreground" />
               </div>
               <span className="font-serif text-lg">
-                Originality<span className="text-accent">AI</span>
+                {settings.app_name}
               </span>
             </div>
             <p className="text-sm text-background/60">
@@ -51,7 +54,7 @@ const Footer = () => {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-background/10 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-background/60">
-            © 2024 OriginalityAI. All rights reserved.
+            © {new Date().getFullYear()} {settings.app_name}. All rights reserved.
           </p>
           <div className="flex items-center gap-6">
             <a href="#" className="text-sm text-background/60 hover:text-accent transition-colors">
