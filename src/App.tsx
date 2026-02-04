@@ -15,6 +15,7 @@ import Results from "./pages/Results";
 import Compare from "./pages/Compare";
 import Admin from "./pages/Admin";
 import UniversityDashboard from "./pages/UniversityDashboard";
+import Subscribe from "./pages/Subscribe";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/subscribe" element={<Subscribe />} />
               <Route path="/dashboard" element={
                 <ProtectedRoute><Dashboard /></ProtectedRoute>
               } />
@@ -46,7 +48,7 @@ const App = () => (
                 <ProtectedRoute><Compare /></ProtectedRoute>
               } />
               <Route path="/admin" element={
-                <ProtectedRoute><Admin /></ProtectedRoute>
+                <ProtectedRoute requireSubscription={false}><Admin /></ProtectedRoute>
               } />
               <Route path="/university" element={
                 <ProtectedRoute><UniversityDashboard /></ProtectedRoute>
