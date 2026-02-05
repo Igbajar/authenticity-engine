@@ -25,6 +25,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AdminSettings from "@/components/AdminSettings";
+ import AdminSubscriptionManager from "@/components/AdminSubscriptionManager";
 
 interface User {
   id: string;
@@ -77,6 +78,10 @@ const Admin = () => {
   const [roleModalOpen, setRoleModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [newRole, setNewRole] = useState<string>("");
+   
+   // Subscription grant modal
+   const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
+   const [subscriptionUser, setSubscriptionUser] = useState<User | null>(null);
 
   useEffect(() => {
     checkAdminAccess();
@@ -372,6 +377,14 @@ const Admin = () => {
                               >
                                 Change Role
                               </DropdownMenuItem>
+                               <DropdownMenuItem
+                                 onClick={() => {
+                                   setSubscriptionUser(u);
+                                   setSubscriptionModalOpen(true);
+                                 }}
+                               >
+                                 Grant Subscription
+                               </DropdownMenuItem>
                               <DropdownMenuItem>View Profile</DropdownMenuItem>
                               <DropdownMenuItem className="text-destructive">
                                 Suspend User
@@ -595,6 +608,17 @@ const Admin = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+       
+       {/* Subscription Grant Modal */}
+       {subscriptionUser && (
+         <AdminSubscriptionManager
+           user={subscriptionUser}
+           tiers={tiers}
+           open={subscriptionModalOpen}
+           onOpenChange={setSubscriptionModalOpen}
+           onSuccess={fetchData}
+         />
+       )}
     </div>
   );
 };

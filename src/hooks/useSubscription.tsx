@@ -10,6 +10,9 @@ interface Subscription {
   scans_used_this_month: number | null;
   max_scans_per_month: number | null;
   billing_period_end: string | null;
+   is_trial?: boolean;
+   trial_ends_at?: string | null;
+   days_remaining?: number;
 }
 
 export const useSubscription = () => {
@@ -36,6 +39,8 @@ export const useSubscription = () => {
             tier_id,
             scans_used_this_month,
             billing_period_end,
+             is_trial,
+             trial_ends_at,
             subscription_tiers (
               name,
               max_scans_per_month
@@ -51,6 +56,20 @@ export const useSubscription = () => {
           setIsSubscribed(false);
         } else if (data) {
           const tierData = data.subscription_tiers as { name: string; max_scans_per_month: number | null } | null;
+           
+           // Check if trial is still valid
+           const isTrial = data.is_trial ?? false;
+           const trialEndsAt = data.trial_ends_at;
+           let isValidSubscription = true;
+           let daysRemaining: number | undefined;
+           
+           if (isTrial && trialEndsAt) {
+             const trialEnd = new Date(trialEndsAt);
+             const now = new Date();
+             isValidSubscription = trialEnd > now;
+             daysRemaining = Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+           }
+           
           setSubscription({
             id: data.id,
             status: data.status,
@@ -59,8 +78,11 @@ export const useSubscription = () => {
             scans_used_this_month: data.scans_used_this_month,
             max_scans_per_month: tierData?.max_scans_per_month ?? null,
             billing_period_end: data.billing_period_end,
+             is_trial: isTrial,
+             trial_ends_at: trialEndsAt,
+             days_remaining: daysRemaining,
           });
-          setIsSubscribed(true);
+           setIsSubscribed(isValidSubscription);
         } else {
           setSubscription(null);
           setIsSubscribed(false);

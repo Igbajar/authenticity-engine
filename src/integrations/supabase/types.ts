@@ -551,10 +551,12 @@ export type Database = {
           billing_period_start: string
           created_at: string
           id: string
+          is_trial: boolean | null
           scans_used_this_month: number | null
           status: string
           stripe_subscription_id: string | null
           tier_id: string
+          trial_ends_at: string | null
           updated_at: string
           user_id: string
         }
@@ -563,10 +565,12 @@ export type Database = {
           billing_period_start?: string
           created_at?: string
           id?: string
+          is_trial?: boolean | null
           scans_used_this_month?: number | null
           status?: string
           stripe_subscription_id?: string | null
           tier_id: string
+          trial_ends_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -575,10 +579,12 @@ export type Database = {
           billing_period_start?: string
           created_at?: string
           id?: string
+          is_trial?: boolean | null
           scans_used_this_month?: number | null
           status?: string
           stripe_subscription_id?: string | null
           tier_id?: string
+          trial_ends_at?: string | null
           updated_at?: string
           user_id?: string
         }
