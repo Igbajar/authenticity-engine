@@ -1,12 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Lock, Shield, Zap } from "lucide-react";
+ import { Check, Lock, Shield, Zap, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAppSettings } from "@/hooks/useAppSettings";
+ import { useSubscription } from "@/hooks/useSubscription";
 
 const Subscribe = () => {
   const { settings } = useAppSettings();
+   const { subscription } = useSubscription();
 
   const plans = [
     {
@@ -61,6 +63,28 @@ const Subscribe = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-16">
+         {/* Trial Banner */}
+         {subscription?.is_trial && subscription.days_remaining !== undefined && (
+           <div className="max-w-2xl mx-auto mb-8 p-4 rounded-xl bg-accent/10 border border-accent/30 flex items-center justify-between">
+             <div className="flex items-center gap-3">
+               <Clock className="w-5 h-5 text-accent" />
+               <div>
+                 <p className="font-medium text-foreground">Free Trial Active</p>
+                 <p className="text-sm text-muted-foreground">
+                   {subscription.days_remaining > 0 
+                     ? `${subscription.days_remaining} days remaining`
+                     : "Trial expired"}
+                 </p>
+               </div>
+             </div>
+             {subscription.days_remaining <= 3 && (
+               <span className="text-xs bg-warning/20 text-warning px-2 py-1 rounded-full">
+                 Expiring soon
+               </span>
+             )}
+           </div>
+         )}
+ 
         {/* Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 bg-destructive/10 text-destructive px-4 py-2 rounded-full mb-6">
