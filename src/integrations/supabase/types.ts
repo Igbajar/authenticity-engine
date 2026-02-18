@@ -552,6 +552,8 @@ export type Database = {
           created_at: string
           id: string
           is_trial: boolean | null
+          notified_1_day: boolean | null
+          notified_3_days: boolean | null
           scans_used_this_month: number | null
           status: string
           stripe_subscription_id: string | null
@@ -566,6 +568,8 @@ export type Database = {
           created_at?: string
           id?: string
           is_trial?: boolean | null
+          notified_1_day?: boolean | null
+          notified_3_days?: boolean | null
           scans_used_this_month?: number | null
           status?: string
           stripe_subscription_id?: string | null
@@ -580,6 +584,8 @@ export type Database = {
           created_at?: string
           id?: string
           is_trial?: boolean | null
+          notified_1_day?: boolean | null
+          notified_3_days?: boolean | null
           scans_used_this_month?: number | null
           status?: string
           stripe_subscription_id?: string | null
