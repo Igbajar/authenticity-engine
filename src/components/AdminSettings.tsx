@@ -4,10 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Save, Settings, Mail, Eye, EyeOff, Bell, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, Save, Settings, Mail, Eye, EyeOff, Bell, CheckCircle2, XCircle, History, RefreshCw } from "lucide-react";
 
 interface SmtpConfig {
   smtp_host: string;
@@ -16,6 +17,15 @@ interface SmtpConfig {
   smtp_password: string;
   smtp_from: string;
   smtp_secure: string;
+}
+
+interface EmailLog {
+  id: string;
+  recipient: string;
+  subject: string;
+  status: string;
+  error_message: string | null;
+  created_at: string;
 }
 
 const SMTP_KEYS: (keyof SmtpConfig)[] = [
@@ -45,12 +55,17 @@ const AdminSettings = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [trialToggleSaving, setTrialToggleSaving] = useState(false);
 
+  // Email logs state
+  const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+
   useEffect(() => {
     setAppName(settings.app_name);
   }, [settings.app_name]);
 
   useEffect(() => {
     fetchSmtpSettings();
+    fetchEmailLogs();
   }, []);
 
   const fetchSmtpSettings = async () => {
@@ -77,6 +92,24 @@ const AdminSettings = () => {
       console.error('Failed to fetch SMTP settings:', err);
     } finally {
       setSmtpLoading(false);
+    }
+  };
+
+  const fetchEmailLogs = async () => {
+    setLogsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('email_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      setEmailLogs((data as EmailLog[]) ?? []);
+    } catch (err) {
+      console.error('Failed to fetch email logs:', err);
+    } finally {
+      setLogsLoading(false);
     }
   };
 
@@ -137,6 +170,8 @@ const AdminSettings = () => {
       setSmtpLastTested(now);
 
       toast({ title: "Test email sent!", description: `Check ${user.email}` });
+      // Refresh logs after test
+      setTimeout(fetchEmailLogs, 2000);
     } catch (err) {
       console.error('SMTP test failed:', err);
       toast({ title: "Test failed", description: String(err), variant: "destructive" });
@@ -162,6 +197,19 @@ const AdminSettings = () => {
       toast({ title: "Failed to update setting", variant: "destructive" });
     } finally {
       setTrialToggleSaving(false);
+    }
+  };
+
+  const statusBadge = (status: string) => {
+    switch (status) {
+      case 'sent':
+        return <Badge className="bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/20">Sent</Badge>;
+      case 'failed':
+        return <Badge variant="destructive">Failed</Badge>;
+      case 'skipped':
+        return <Badge className="bg-yellow-600/20 text-yellow-400 border-yellow-600/30 hover:bg-yellow-600/20">Skipped</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
@@ -251,74 +299,32 @@ const AdminSettings = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="smtp_host">SMTP Host</Label>
-                <Input
-                  id="smtp_host"
-                  value={smtp.smtp_host}
-                  onChange={(e) => setSmtp(s => ({ ...s, smtp_host: e.target.value }))}
-                  placeholder="smtp.example.com"
-                />
+                <Input id="smtp_host" value={smtp.smtp_host} onChange={(e) => setSmtp(s => ({ ...s, smtp_host: e.target.value }))} placeholder="smtp.example.com" />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="smtp_port">Port</Label>
-                <Input
-                  id="smtp_port"
-                  value={smtp.smtp_port}
-                  onChange={(e) => setSmtp(s => ({ ...s, smtp_port: e.target.value }))}
-                  placeholder="587"
-                  type="number"
-                />
+                <Input id="smtp_port" value={smtp.smtp_port} onChange={(e) => setSmtp(s => ({ ...s, smtp_port: e.target.value }))} placeholder="587" type="number" />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="smtp_user">Username</Label>
-                <Input
-                  id="smtp_user"
-                  value={smtp.smtp_user}
-                  onChange={(e) => setSmtp(s => ({ ...s, smtp_user: e.target.value }))}
-                  placeholder="user@example.com"
-                />
+                <Input id="smtp_user" value={smtp.smtp_user} onChange={(e) => setSmtp(s => ({ ...s, smtp_user: e.target.value }))} placeholder="user@example.com" />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="smtp_password">Password</Label>
                 <div className="relative">
-                  <Input
-                    id="smtp_password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={smtp.smtp_password}
-                    onChange={(e) => setSmtp(s => ({ ...s, smtp_password: e.target.value }))}
-                    placeholder="••••••••"
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(v => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
+                  <Input id="smtp_password" type={showPassword ? 'text' : 'password'} value={smtp.smtp_password} onChange={(e) => setSmtp(s => ({ ...s, smtp_password: e.target.value }))} placeholder="••••••••" className="pr-10" />
+                  <button type="button" onClick={() => setShowPassword(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="smtp_from">From Address</Label>
-                <Input
-                  id="smtp_from"
-                  value={smtp.smtp_from}
-                  onChange={(e) => setSmtp(s => ({ ...s, smtp_from: e.target.value }))}
-                  placeholder="noreply@example.com"
-                />
+                <Input id="smtp_from" value={smtp.smtp_from} onChange={(e) => setSmtp(s => ({ ...s, smtp_from: e.target.value }))} placeholder="noreply@example.com" />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="smtp_secure">Security</Label>
-                <select
-                  id="smtp_secure"
-                  value={smtp.smtp_secure}
-                  onChange={(e) => setSmtp(s => ({ ...s, smtp_secure: e.target.value }))}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
+                <select id="smtp_secure" value={smtp.smtp_secure} onChange={(e) => setSmtp(s => ({ ...s, smtp_secure: e.target.value }))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                   <option value="false">STARTTLS (port 587)</option>
                   <option value="true">SSL/TLS (port 465)</option>
                 </select>
@@ -331,15 +337,10 @@ const AdminSettings = () => {
 
             <div className="flex gap-3 flex-wrap">
               <Button onClick={handleSaveSmtp} disabled={smtpSaving}>
-                {smtpSaving ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</>
-                ) : (
-                  <><Save className="w-4 h-4 mr-2" />Save SMTP Settings</>
-                )}
+                {smtpSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : <><Save className="w-4 h-4 mr-2" />Save SMTP Settings</>}
               </Button>
               <Button variant="outline" onClick={handleTestSmtp} disabled={smtpSaving || !smtp.smtp_host}>
-                <Mail className="w-4 h-4 mr-2" />
-                Send Test Email
+                <Mail className="w-4 h-4 mr-2" />Send Test Email
               </Button>
             </div>
           </div>
@@ -367,6 +368,56 @@ const AdminSettings = () => {
             disabled={trialToggleSaving || smtpLoading}
           />
         </div>
+      </div>
+
+      {/* Email Logs */}
+      <div className="rounded-2xl border border-border bg-card p-6 space-y-6">
+        <div className="flex items-center justify-between pb-4 border-b border-border">
+          <div className="flex items-center gap-3">
+            <History className="w-5 h-5 text-accent" />
+            <h3 className="font-medium text-foreground">Email Log</h3>
+          </div>
+          <Button variant="ghost" size="sm" onClick={fetchEmailLogs} disabled={logsLoading}>
+            <RefreshCw className={`w-4 h-4 mr-1 ${logsLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
+
+        {logsLoading && emailLogs.length === 0 ? (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="text-sm">Loading email logs…</span>
+          </div>
+        ) : emailLogs.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">No emails sent yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Time</TableHead>
+                  <TableHead>Recipient</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Error</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {emailLogs.map((log) => (
+                  <TableRow key={log.id}>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(log.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </TableCell>
+                    <TableCell className="text-sm max-w-[200px] truncate">{log.recipient}</TableCell>
+                    <TableCell className="text-sm max-w-[250px] truncate">{log.subject}</TableCell>
+                    <TableCell>{statusBadge(log.status)}</TableCell>
+                    <TableCell className="text-xs text-destructive max-w-[200px] truncate">{log.error_message || '—'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
     </div>
   );

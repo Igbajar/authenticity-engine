@@ -12,6 +12,10 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, serviceRoleKey);
+
   try {
     const { to, subject, html } = await req.json();
 
@@ -22,11 +26,7 @@ serve(async (req) => {
       );
     }
 
-    // Read SMTP config from app_settings using service role (bypasses RLS)
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
-
+    // Read SMTP config from app_settings
     const { data: settingsData, error: settingsError } = await supabase
       .from('app_settings')
       .select('key, value')
@@ -34,6 +34,7 @@ serve(async (req) => {
 
     if (settingsError) {
       console.error('[send-email] Failed to read SMTP settings:', settingsError);
+      await logEmail(supabase, to, subject, 'failed', 'Failed to read SMTP configuration');
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to read SMTP configuration' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -46,12 +47,10 @@ serve(async (req) => {
     }
 
     if (!smtp.smtp_host || !smtp.smtp_user || !smtp.smtp_password) {
-      console.warn('[send-email] SMTP not configured. Would have sent to:', to);
+      console.warn('[send-email] SMTP not configured.');
+      await logEmail(supabase, to, subject, 'skipped', 'SMTP not configured');
       return new Response(
-        JSON.stringify({
-          success: false,
-          message: 'SMTP is not configured yet. Please set SMTP settings in the admin panel.',
-        }),
+        JSON.stringify({ success: false, message: 'SMTP is not configured yet.' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -63,10 +62,7 @@ serve(async (req) => {
       host: smtp.smtp_host,
       port,
       secure,
-      auth: {
-        user: smtp.smtp_user,
-        pass: smtp.smtp_password,
-      },
+      auth: { user: smtp.smtp_user, pass: smtp.smtp_password },
     });
 
     const info = await transporter.sendMail({
@@ -76,7 +72,8 @@ serve(async (req) => {
       html,
     });
 
-    console.log(`[send-email] Email sent successfully to ${to}, messageId: ${info.messageId}`);
+    console.log(`[send-email] Sent to ${to}, messageId: ${info.messageId}`);
+    await logEmail(supabase, to, subject, 'sent');
 
     return new Response(
       JSON.stringify({ success: true, messageId: info.messageId }),
@@ -85,9 +82,32 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('[send-email] Unexpected error:', error);
+    // Try to log — extract recipient from body if possible
+    try {
+      await logEmail(supabase, 'unknown', 'unknown', 'failed', String(error));
+    } catch (_) { /* ignore logging failure */ }
     return new Response(
       JSON.stringify({ success: false, error: String(error) }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
+
+async function logEmail(
+  supabase: ReturnType<typeof createClient>,
+  recipient: string,
+  subject: string,
+  status: string,
+  errorMessage?: string
+) {
+  try {
+    await supabase.from('email_logs').insert({
+      recipient,
+      subject,
+      status,
+      error_message: errorMessage ?? null,
+    });
+  } catch (e) {
+    console.error('[send-email] Failed to log email:', e);
+  }
+}
