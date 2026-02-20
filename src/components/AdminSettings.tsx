@@ -2,10 +2,12 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Save, Settings, Mail, Eye, EyeOff } from "lucide-react";
+import { Loader2, Save, Settings, Mail, Eye, EyeOff, Bell, CheckCircle2, XCircle } from "lucide-react";
 
 interface SmtpConfig {
   smtp_host: string;
@@ -19,6 +21,8 @@ interface SmtpConfig {
 const SMTP_KEYS: (keyof SmtpConfig)[] = [
   'smtp_host', 'smtp_port', 'smtp_user', 'smtp_password', 'smtp_from', 'smtp_secure',
 ];
+
+const EXTRA_KEYS = ['smtp_last_tested', 'trial_emails_enabled'];
 
 const AdminSettings = () => {
   const { settings, updateSetting, loading } = useAppSettings();
@@ -34,9 +38,12 @@ const AdminSettings = () => {
     smtp_from: '',
     smtp_secure: 'false',
   });
+  const [smtpLastTested, setSmtpLastTested] = useState<string | null>(null);
+  const [trialEmailsEnabled, setTrialEmailsEnabled] = useState(true);
   const [smtpLoading, setSmtpLoading] = useState(true);
   const [smtpSaving, setSmtpSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [trialToggleSaving, setTrialToggleSaving] = useState(false);
 
   useEffect(() => {
     setAppName(settings.app_name);
@@ -51,17 +58,20 @@ const AdminSettings = () => {
       const { data, error } = await supabase
         .from('app_settings')
         .select('key, value')
-        .in('key', SMTP_KEYS);
+        .in('key', [...SMTP_KEYS, ...EXTRA_KEYS]);
 
       if (error) throw error;
 
       if (data) {
-        const map = data.reduce((acc, row) => {
-          acc[row.key as keyof SmtpConfig] = row.value;
-          return acc;
-        }, {} as Partial<SmtpConfig>);
+        const map: Record<string, string> = {};
+        data.forEach(row => { map[row.key] = row.value; });
 
-        setSmtp(prev => ({ ...prev, ...map }));
+        setSmtp(prev => ({
+          ...prev,
+          ...Object.fromEntries(SMTP_KEYS.filter(k => map[k]).map(k => [k, map[k]])),
+        }));
+        setSmtpLastTested(map['smtp_last_tested'] || null);
+        setTrialEmailsEnabled(map['trial_emails_enabled'] !== 'false');
       }
     } catch (err) {
       console.error('Failed to fetch SMTP settings:', err);
@@ -69,6 +79,8 @@ const AdminSettings = () => {
       setSmtpLoading(false);
     }
   };
+
+  const isSmtpConfigured = !!(smtp.smtp_host && smtp.smtp_user && smtp.smtp_password);
 
   const handleSaveAppName = async () => {
     setSaving(true);
@@ -117,10 +129,39 @@ const AdminSettings = () => {
       });
 
       if (error) throw error;
+
+      const now = new Date().toISOString();
+      await supabase
+        .from('app_settings')
+        .upsert({ key: 'smtp_last_tested', value: now, updated_at: now }, { onConflict: 'key' });
+      setSmtpLastTested(now);
+
       toast({ title: "Test email sent!", description: `Check ${user.email}` });
     } catch (err) {
       console.error('SMTP test failed:', err);
       toast({ title: "Test failed", description: String(err), variant: "destructive" });
+    }
+  };
+
+  const handleToggleTrialEmails = async (enabled: boolean) => {
+    setTrialToggleSaving(true);
+    try {
+      const now = new Date().toISOString();
+      await supabase
+        .from('app_settings')
+        .upsert({ key: 'trial_emails_enabled', value: String(enabled), updated_at: now }, { onConflict: 'key' });
+      setTrialEmailsEnabled(enabled);
+      toast({
+        title: enabled ? "Trial emails enabled" : "Trial emails disabled",
+        description: enabled
+          ? "Users will receive trial expiry reminders."
+          : "Trial expiry email notifications are now paused.",
+      });
+    } catch (err) {
+      console.error('Failed to toggle trial emails:', err);
+      toast({ title: "Failed to update setting", variant: "destructive" });
+    } finally {
+      setTrialToggleSaving(false);
     }
   };
 
@@ -173,9 +214,31 @@ const AdminSettings = () => {
 
       {/* SMTP Settings */}
       <div className="rounded-2xl border border-border bg-card p-6 space-y-6">
-        <div className="flex items-center gap-3 pb-4 border-b border-border">
-          <Mail className="w-5 h-5 text-accent" />
-          <h3 className="font-medium text-foreground">SMTP Email Configuration</h3>
+        <div className="flex items-center justify-between pb-4 border-b border-border">
+          <div className="flex items-center gap-3">
+            <Mail className="w-5 h-5 text-accent" />
+            <h3 className="font-medium text-foreground">SMTP Email Configuration</h3>
+          </div>
+          {!smtpLoading && (
+            <div className="flex items-center gap-2">
+              {isSmtpConfigured ? (
+                <Badge variant="default" className="flex items-center gap-1 bg-green-600 hover:bg-green-600 text-white">
+                  <CheckCircle2 className="w-3 h-3" />
+                  Configured
+                </Badge>
+              ) : (
+                <Badge variant="destructive" className="flex items-center gap-1">
+                  <XCircle className="w-3 h-3" />
+                  Not Configured
+                </Badge>
+              )}
+              {smtpLastTested && (
+                <span className="text-xs text-muted-foreground">
+                  Last tested: {new Date(smtpLastTested).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {smtpLoading ? (
@@ -281,6 +344,29 @@ const AdminSettings = () => {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Trial Email Notifications */}
+      <div className="rounded-2xl border border-border bg-card p-6 space-y-6">
+        <div className="flex items-center gap-3 pb-4 border-b border-border">
+          <Bell className="w-5 h-5 text-accent" />
+          <h3 className="font-medium text-foreground">Email Notifications</h3>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <Label htmlFor="trialEmails" className="text-sm font-medium">Trial Expiry Reminders</Label>
+            <p className="text-sm text-muted-foreground">
+              Send automated emails to users 3 days and 1 day before their free trial expires.
+            </p>
+          </div>
+          <Switch
+            id="trialEmails"
+            checked={trialEmailsEnabled}
+            onCheckedChange={handleToggleTrialEmails}
+            disabled={trialToggleSaving || smtpLoading}
+          />
+        </div>
       </div>
     </div>
   );
