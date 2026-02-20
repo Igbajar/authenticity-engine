@@ -59,6 +59,21 @@ serve(async (req) => {
   }
 
   try {
+    // Check if trial emails are globally enabled
+    const { data: toggleRow } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'trial_emails_enabled')
+      .maybeSingle();
+
+    if (toggleRow?.value === 'false') {
+      console.log('[trial-emails] Trial expiry emails are disabled globally. Skipping.');
+      return new Response(
+        JSON.stringify({ success: true, emailsSent: 0, skipped: true, reason: 'disabled' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // --- 3-day warning (window: 2.5 → 3.5 days from now) ---
     const threeDayUsers = await fetchExpiringUsers(
       new Date(now.getTime() + 2.5 * 24 * 60 * 60 * 1000),
