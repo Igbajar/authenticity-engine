@@ -9,6 +9,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import CouponRedeemInput from "@/components/CouponRedeemInput";
 
 interface Scan {
   id: string;
@@ -248,6 +249,11 @@ const Dashboard = () => {
               {stats.totalWords.toLocaleString()}
             </div>
           </div>
+        </div>
+
+        {/* Coupon Redemption */}
+        <div className="max-w-md mb-8">
+          <CouponRedeemInput />
         </div>
 
         {/* Scans Section */}

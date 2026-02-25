@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.parse-document]
 verify_jwt = false
+
+[functions.redeem-coupon]
+verify_jwt = false

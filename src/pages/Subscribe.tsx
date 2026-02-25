@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { useAppSettings } from "@/hooks/useAppSettings";
  import { useSubscription } from "@/hooks/useSubscription";
+import CouponRedeemInput from "@/components/CouponRedeemInput";
 
 const Subscribe = () => {
   const { settings } = useAppSettings();
@@ -147,6 +148,11 @@ const Subscribe = () => {
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        {/* Coupon Redemption */}
+        <div className="max-w-md mx-auto mb-12">
+          <CouponRedeemInput />
         </div>
 
         {/* Trust indicators */}

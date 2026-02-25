@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { 
   ArrowLeft, Users, CreditCard, BarChart3, Settings,
   Search, MoreVertical, Shield, Loader2, TrendingUp,
-  FileText, Brain, AlertCircle, CheckCircle2, X, Cog
+  FileText, Brain, AlertCircle, CheckCircle2, X, Cog, Tag
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -26,6 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AdminSettings from "@/components/AdminSettings";
  import AdminSubscriptionManager from "@/components/AdminSubscriptionManager";
+ import AdminCouponManager from "@/components/AdminCouponManager";
 
 interface User {
   id: string;
@@ -66,7 +67,7 @@ const Admin = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<"users" | "subscriptions" | "analytics" | "settings">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "subscriptions" | "analytics" | "coupons" | "settings">("users");
   const [users, setUsers] = useState<User[]>([]);
   const [tiers, setTiers] = useState<SubscriptionTier[]>([]);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
@@ -253,6 +254,7 @@ const Admin = () => {
   const tabs = [
     { id: "users", label: "Users", icon: Users },
     { id: "subscriptions", label: "Subscriptions", icon: CreditCard },
+    { id: "coupons", label: "Coupons", icon: Tag },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "settings", label: "Settings", icon: Cog },
   ] as const;
@@ -471,6 +473,9 @@ const Admin = () => {
             </div>
           </div>
         )}
+
+        {/* Coupons Tab */}
+        {activeTab === "coupons" && <AdminCouponManager />}
 
         {/* Analytics Tab */}
         {activeTab === "analytics" && analytics && (
