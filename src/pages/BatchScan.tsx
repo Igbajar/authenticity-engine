@@ -4,8 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { 
   Upload, FileText, X, Loader2, CheckCircle2, Brain, Search, 
-  FileCheck, AlertCircle, ArrowLeft, Files, Trash2, GitCompare 
+  FileCheck, AlertCircle, ArrowLeft, Files, Trash2, GitCompare, Download 
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { exportBatchCSV, exportBatchPDF } from "@/lib/batchExport";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -347,6 +354,18 @@ const BatchScan = () => {
     ? (files.reduce((acc, f) => acc + f.progress, 0) / files.length) 
     : 0;
 
+  const buildExportData = () => {
+    return files
+      .filter((f) => f.status === "complete" || f.status === "error")
+      .map((f) => ({
+        fileName: f.file.name,
+        similarityScore: f.results?.similarityScore ?? 0,
+        aiScore: f.results?.aiScore ?? 0,
+        status: f.status as "complete" | "error",
+        error: f.error,
+      }));
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -638,7 +657,25 @@ const BatchScan = () => {
                         Compare Documents Internally
                       </Button>
                     )}
-                    <div className="flex gap-4">
+                    <div className="flex gap-4 flex-wrap justify-center">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline">
+                            <Download className="w-4 h-4 mr-2" />
+                            Export Report
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onClick={() => exportBatchPDF(buildExportData(), internalMatches)}>
+                            <FileText className="w-4 h-4 mr-2" />
+                            Download PDF
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => exportBatchCSV(buildExportData(), internalMatches)}>
+                            <FileText className="w-4 h-4 mr-2" />
+                            Download CSV
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       <Button variant="outline" onClick={clearAllFiles}>
                         Scan More Documents
                       </Button>
