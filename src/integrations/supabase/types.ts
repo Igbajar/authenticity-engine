@@ -199,6 +199,88 @@ export type Database = {
           },
         ]
       }
+      coupon_redemptions: {
+        Row: {
+          coupon_id: string
+          id: string
+          redeemed_at: string
+          user_id: string
+        }
+        Insert: {
+          coupon_id: string
+          id?: string
+          redeemed_at?: string
+          user_id: string
+        }
+        Update: {
+          coupon_id?: string
+          id?: string
+          redeemed_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupon_redemptions_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coupons: {
+        Row: {
+          code: string
+          coupon_type: Database["public"]["Enums"]["coupon_type"]
+          created_at: string
+          created_by: string | null
+          description: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          max_redemptions: number | null
+          tier_id: string | null
+          times_redeemed: number
+          value: number
+        }
+        Insert: {
+          code: string
+          coupon_type: Database["public"]["Enums"]["coupon_type"]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_redemptions?: number | null
+          tier_id?: string | null
+          times_redeemed?: number
+          value?: number
+        }
+        Update: {
+          code?: string
+          coupon_type?: Database["public"]["Enums"]["coupon_type"]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_redemptions?: number | null
+          tier_id?: string | null
+          times_redeemed?: number
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupons_tier_id_fkey"
+            columns: ["tier_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_tiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_comparisons: {
         Row: {
           completed_at: string | null
@@ -646,6 +728,11 @@ export type Database = {
     }
     Enums: {
       app_role: "user" | "teacher" | "admin"
+      coupon_type:
+        | "trial_extension"
+        | "discount"
+        | "free_subscription"
+        | "extra_scans"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -774,6 +861,12 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["user", "teacher", "admin"],
+      coupon_type: [
+        "trial_extension",
+        "discount",
+        "free_subscription",
+        "extra_scans",
+      ],
     },
   },
 } as const
