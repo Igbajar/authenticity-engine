@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import CouponRedeemInput from "@/components/CouponRedeemInput";
+import SubscriptionStatusCard from "@/components/SubscriptionStatusCard";
 
 interface Scan {
   id: string;
@@ -251,8 +252,9 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Coupon Redemption */}
-        <div className="max-w-md mb-8">
+        {/* Subscription & Coupon */}
+        <div className="grid sm:grid-cols-2 gap-4 mb-8 max-w-2xl">
+          <SubscriptionStatusCard />
           <CouponRedeemInput />
         </div>
 
