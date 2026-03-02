@@ -50,8 +50,19 @@ serve(async (req) => {
 
     console.log(`Processing file: ${file.name}, type: ${file.type}, size: ${file.size}`);
 
+    // Enforce size limit for PDF files to avoid memory issues
+    const MAX_PDF_SIZE = 5 * 1024 * 1024; // 5MB
     const fileType = file.type.toLowerCase();
     const fileName = file.name.toLowerCase();
+    const isPdf = fileType === 'application/pdf' || fileName.endsWith('.pdf');
+
+    if (isPdf && file.size > MAX_PDF_SIZE) {
+      return new Response(
+        JSON.stringify({ error: `PDF file is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum size is 5MB. Please compress or split the PDF.` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     let extractedText = '';
 
     // Handle different file types
