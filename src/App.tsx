@@ -16,6 +16,7 @@ import Compare from "./pages/Compare";
 import Admin from "./pages/Admin";
 import UniversityDashboard from "./pages/UniversityDashboard";
 import Subscribe from "./pages/Subscribe";
+import PaymentCallback from "./pages/PaymentCallback";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/subscribe" element={<Subscribe />} />
+              <Route path="/payment/callback" element={<PaymentCallback />} />
               <Route path="/dashboard" element={
                 <ProtectedRoute><Dashboard /></ProtectedRoute>
               } />

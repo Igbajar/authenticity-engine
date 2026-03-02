@@ -1,15 +1,23 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
- import { Check, Lock, Shield, Zap, Clock } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Check, Lock, Shield, Zap, Clock, Loader2, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAppSettings } from "@/hooks/useAppSettings";
- import { useSubscription } from "@/hooks/useSubscription";
+import { useSubscription } from "@/hooks/useSubscription";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 import CouponRedeemInput from "@/components/CouponRedeemInput";
 
 const Subscribe = () => {
   const { settings } = useAppSettings();
-   const { subscription } = useSubscription();
+  const { subscription } = useSubscription();
+  const { user } = useAuth();
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState("");
 
   const plans = [
     {
@@ -61,31 +69,71 @@ const Subscribe = () => {
     },
   ];
 
+  const handleSubscribe = async (planName: string) => {
+    if (planName === "University") {
+      toast({ title: "Contact Sales", description: "Please reach out to our team for University pricing." });
+      return;
+    }
+
+    if (!user) {
+      toast({ title: "Sign in required", description: "Please sign in to subscribe.", variant: "destructive" });
+      return;
+    }
+
+    setLoadingPlan(planName);
+    try {
+      const callbackUrl = `${window.location.origin}/payment/callback`;
+      const { data, error } = await supabase.functions.invoke("create-paystack-checkout", {
+        body: {
+          plan_name: planName,
+          coupon_code: couponCode.trim() || null,
+          callback_url: callbackUrl,
+        },
+      });
+
+      if (error || !data?.authorization_url) {
+        toast({
+          title: "Payment Error",
+          description: data?.error || error?.message || "Could not initialize payment.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Redirect to Paystack checkout
+      window.location.href = data.authorization_url;
+    } catch (err) {
+      toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" });
+    } finally {
+      setLoadingPlan(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-16">
-         {/* Trial Banner */}
-         {subscription?.is_trial && subscription.days_remaining !== undefined && (
-           <div className="max-w-2xl mx-auto mb-8 p-4 rounded-xl bg-accent/10 border border-accent/30 flex items-center justify-between">
-             <div className="flex items-center gap-3">
-               <Clock className="w-5 h-5 text-accent" />
-               <div>
-                 <p className="font-medium text-foreground">Free Trial Active</p>
-                 <p className="text-sm text-muted-foreground">
-                   {subscription.days_remaining > 0 
-                     ? `${subscription.days_remaining} days remaining`
-                     : "Trial expired"}
-                 </p>
-               </div>
-             </div>
-             {subscription.days_remaining <= 3 && (
-               <span className="text-xs bg-warning/20 text-warning px-2 py-1 rounded-full">
-                 Expiring soon
-               </span>
-             )}
-           </div>
-         )}
- 
+        {/* Trial Banner */}
+        {subscription?.is_trial && subscription.days_remaining !== undefined && (
+          <div className="max-w-2xl mx-auto mb-8 p-4 rounded-xl bg-accent/10 border border-accent/30 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Clock className="w-5 h-5 text-accent" />
+              <div>
+                <p className="font-medium text-foreground">Free Trial Active</p>
+                <p className="text-sm text-muted-foreground">
+                  {subscription.days_remaining > 0
+                    ? `${subscription.days_remaining} days remaining`
+                    : "Trial expired"}
+                </p>
+              </div>
+            </div>
+            {subscription.days_remaining <= 3 && (
+              <span className="text-xs bg-warning/20 text-warning px-2 py-1 rounded-full">
+                Expiring soon
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 bg-destructive/10 text-destructive px-4 py-2 rounded-full mb-6">
@@ -98,6 +146,20 @@ const Subscribe = () => {
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Choose a plan to unlock full access to plagiarism detection, AI analysis, and citation tools.
           </p>
+        </div>
+
+        {/* Coupon Code Input */}
+        <div className="max-w-md mx-auto mb-8">
+          <div className="flex items-center gap-2">
+            <Tag className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Have a coupon code? Enter it below for a discount:</span>
+          </div>
+          <Input
+            className="mt-2"
+            placeholder="Enter coupon code"
+            value={couponCode}
+            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+          />
         </div>
 
         {/* Plans */}
@@ -142,15 +204,21 @@ const Subscribe = () => {
                 <Button
                   className="w-full"
                   variant={plan.popular ? "default" : "outline"}
+                  disabled={loadingPlan !== null}
+                  onClick={() => handleSubscribe(plan.name)}
                 >
-                  {plan.name === "University" ? "Contact Sales" : "Subscribe Now"}
+                  {loadingPlan === plan.name ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
+                  ) : (
+                    plan.name === "University" ? "Contact Sales" : "Subscribe Now"
+                  )}
                 </Button>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        {/* Coupon Redemption */}
+        {/* Coupon Redemption (for trial/extra scans) */}
         <div className="max-w-md mx-auto mb-12">
           <CouponRedeemInput />
         </div>
@@ -159,7 +227,7 @@ const Subscribe = () => {
         <div className="flex flex-wrap justify-center gap-8 text-muted-foreground">
           <div className="flex items-center gap-2">
             <Shield className="w-5 h-5 text-primary" />
-            <span className="text-sm">Secure payments</span>
+            <span className="text-sm">Secure payments via Paystack</span>
           </div>
           <div className="flex items-center gap-2">
             <Zap className="w-5 h-5 text-primary" />
