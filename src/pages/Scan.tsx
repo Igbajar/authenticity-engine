@@ -8,6 +8,7 @@ import { useAppSettings } from "@/hooks/useAppSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { extractTextFromFile } from "@/lib/documentParser";
+import { consumePendingFile } from "@/lib/fileStore";
 import ScanProgressRealtime from "@/components/ScanProgressRealtime";
 
 const scanStages = [
