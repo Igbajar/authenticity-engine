@@ -48,7 +48,6 @@ const Scan = () => {
       setTextInput(state.text);
     }
   }, [location.state]);
-  const [useRealtimeProgress, setUseRealtimeProgress] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
