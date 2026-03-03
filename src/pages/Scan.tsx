@@ -117,22 +117,22 @@ const Scan = () => {
         body: { url: urlInput },
       });
 
-      // Handle invocation-level errors
-      if (response.error) {
-        // The edge function may return a JSON body even on error
-        const bodyError = (response.data as any)?.error;
-        if (bodyError && typeof bodyError === "string" && bodyError.includes("scraping engines failed")) {
+      // Handle errors - supabase.functions.invoke puts non-2xx response body in error.context
+      const errorMsg = (response.error as any)?.context?.body 
+        ? (() => { try { return JSON.parse((response.error as any).context.body)?.error; } catch { return null; } })()
+        : null;
+      const dataError = response.data?.error;
+      const combinedError = errorMsg || dataError || (response.error ? (response.error.message || "Failed to fetch URL") : null);
+
+      if (combinedError) {
+        if (typeof combinedError === "string" && (combinedError.includes("scraping engines failed") || combinedError.includes("All scraping engines"))) {
           throw new Error("This website could not be accessed. It may be blocking automated access, require authentication, or be temporarily unavailable. Please try a different URL.");
         }
-        throw new Error(bodyError || response.error.message || "Failed to fetch URL");
+        throw new Error(combinedError);
       }
 
-      if (!response.data?.success) {
-        const errMsg = response.data?.error || "Failed to scrape content";
-        if (errMsg.includes("scraping engines failed")) {
-          throw new Error("This website could not be accessed. It may be blocking automated access, require authentication, or be temporarily unavailable. Please try a different URL.");
-        }
-        throw new Error(errMsg);
+      if (!response.data?.success && response.data?.success !== undefined) {
+        throw new Error(response.data?.error || "Failed to scrape content");
       }
 
       // Firecrawl v1 nests content inside data.data
