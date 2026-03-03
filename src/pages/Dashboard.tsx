@@ -42,6 +42,8 @@ const Dashboard = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showClearDialog, setShowClearDialog] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [stats, setStats] = useState({
     totalScans: 0,
     avgSimilarity: 0,
