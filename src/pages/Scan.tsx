@@ -117,19 +117,31 @@ const Scan = () => {
         body: { url: urlInput },
       });
 
+      // Handle invocation-level errors
       if (response.error) {
-        throw new Error(response.error.message || "Failed to fetch URL");
+        // The edge function may return a JSON body even on error
+        const bodyError = (response.data as any)?.error;
+        if (bodyError && typeof bodyError === "string" && bodyError.includes("scraping engines failed")) {
+          throw new Error("This website could not be accessed. It may be blocking automated access, require authentication, or be temporarily unavailable. Please try a different URL.");
+        }
+        throw new Error(bodyError || response.error.message || "Failed to fetch URL");
       }
 
-      if (!response.data.success) {
-        throw new Error(response.data.error || "Failed to scrape content");
+      if (!response.data?.success) {
+        const errMsg = response.data?.error || "Failed to scrape content";
+        if (errMsg.includes("scraping engines failed")) {
+          throw new Error("This website could not be accessed. It may be blocking automated access, require authentication, or be temporarily unavailable. Please try a different URL.");
+        }
+        throw new Error(errMsg);
       }
 
-      const content = response.data.content;
-      const title = response.data.title;
+      // Firecrawl v1 nests content inside data.data
+      const scrapeData = response.data.data || response.data;
+      const content = scrapeData.markdown || scrapeData.content || "";
+      const title = scrapeData.metadata?.title || scrapeData.title || urlInput;
 
       if (!content || content.trim().length < 50) {
-        throw new Error("Could not extract enough content from this URL");
+        throw new Error("Could not extract enough content from this URL. The page may be empty or require authentication.");
       }
 
       setUrlContent({ content, title });
@@ -140,8 +152,8 @@ const Scan = () => {
     } catch (error) {
       console.error("Error fetching URL:", error);
       toast({
-        title: "Error fetching URL",
-        description: error instanceof Error ? error.message : "Failed to fetch content from URL",
+        title: "Could not fetch URL",
+        description: error instanceof Error ? error.message : "Failed to fetch content from URL. Please check the URL and try again.",
         variant: "destructive",
       });
     } finally {
