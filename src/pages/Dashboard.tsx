@@ -389,8 +389,27 @@ const Dashboard = () => {
           )}
         </div>
       </main>
+
+      <Dialog open={showClearDialog} onOpenChange={setShowClearDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Clear all scan history?</DialogTitle>
+            <DialogDescription>
+              This will permanently delete all your scans, documents, and associated results. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button variant="destructive" onClick={handleClearHistory} disabled={clearing}>
+              {clearing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {clearing ? "Clearing..." : "Clear All History"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
-  );
 };
 
 export default Dashboard;
