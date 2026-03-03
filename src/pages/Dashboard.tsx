@@ -126,6 +126,32 @@ const Dashboard = () => {
     navigate("/");
   };
 
+  const handleClearHistory = async () => {
+    setClearing(true);
+    try {
+      // Delete related data first, then scans, then documents
+      const scanIds = scans.map(s => s.id);
+      if (scanIds.length > 0) {
+        await supabase.from("similarity_matches").delete().in("scan_id", scanIds);
+        await supabase.from("citations").delete().in("scan_id", scanIds);
+        await supabase.from("bibliographies").delete().in("scan_id", scanIds);
+        await supabase.from("scan_reports").delete().in("scan_id", scanIds);
+        await supabase.from("scans").delete().eq("user_id", user!.id);
+      }
+      await supabase.from("documents").delete().eq("user_id", user!.id);
+      
+      setScans([]);
+      setStats({ totalScans: 0, avgSimilarity: 0, avgAiScore: 0, totalWords: 0 });
+      setShowClearDialog(false);
+      toast({ title: "History cleared", description: "All your scan history has been removed." });
+    } catch (error) {
+      console.error("Error clearing history:", error);
+      toast({ title: "Error", description: "Could not clear history. Please try again.", variant: "destructive" });
+    } finally {
+      setClearing(false);
+    }
+  };
+
   const getScoreColor = (score: number | null) => {
     if (score === null) return "text-muted-foreground";
     if (score <= 15) return "text-success";
