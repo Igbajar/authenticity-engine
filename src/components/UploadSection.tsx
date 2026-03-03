@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Upload, FileText, Link, X, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { setPendingFile } from "@/lib/fileStore";
 
 const UploadSection = () => {
   const [isDragging, setIsDragging] = useState(false);
