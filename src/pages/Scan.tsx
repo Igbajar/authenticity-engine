@@ -48,6 +48,11 @@ const Scan = () => {
     if (state?.text) {
       setTextInput(state.text);
     }
+    // Check for a pending file from the front page
+    const pendingFile = consumePendingFile();
+    if (pendingFile) {
+      setFile(pendingFile);
+    }
   }, [location.state]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
