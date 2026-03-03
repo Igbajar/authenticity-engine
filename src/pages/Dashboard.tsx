@@ -4,8 +4,11 @@ import { Button } from "@/components/ui/button";
 import { 
   FileText, Plus, Search, Clock, TrendingUp, 
   AlertCircle, CheckCircle2, Brain, LogOut, Settings,
-  BarChart3, Users, Building2, Loader2, ArrowLeftRight, Shield, Files
+  BarChart3, Users, Building2, Loader2, ArrowLeftRight, Shield, Files, Trash2
 } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose
+} from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
