@@ -52,9 +52,12 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       console.error('Firecrawl API error:', data);
+      const userError = data.error?.includes?.('scraping engines failed')
+        ? 'This website could not be accessed. It may be blocking automated access, require authentication, or be temporarily unavailable.'
+        : (data.error || `Request failed with status ${response.status}`);
       return new Response(
-        JSON.stringify({ success: false, error: data.error || `Request failed with status ${response.status}` }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: userError }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
