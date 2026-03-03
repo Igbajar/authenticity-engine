@@ -410,6 +410,5 @@ const Dashboard = () => {
         </DialogContent>
       </Dialog>
     </div>
-};
-
+  );
 export default Dashboard;
