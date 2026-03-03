@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Upload, FileText, Link, X, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { setPendingFile } from "@/lib/fileStore";
 
 const UploadSection = () => {
   const [isDragging, setIsDragging] = useState(false);
@@ -54,7 +55,7 @@ const UploadSection = () => {
     if (activeTab === "paste" && textInput.trim()) {
       navigate("/scan", { state: { tab: "paste", text: textInput } });
     } else if (activeTab === "upload" && file) {
-      // Files can't be passed via state reliably, navigate with tab hint
+      setPendingFile(file);
       navigate("/scan", { state: { tab: "upload" } });
     } else if (activeTab === "url") {
       navigate("/scan", { state: { tab: "url" } });

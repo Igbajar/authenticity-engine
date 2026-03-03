@@ -8,6 +8,7 @@ import { useAppSettings } from "@/hooks/useAppSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { extractTextFromFile } from "@/lib/documentParser";
+import { consumePendingFile } from "@/lib/fileStore";
 import ScanProgressRealtime from "@/components/ScanProgressRealtime";
 
 const scanStages = [
@@ -46,6 +47,11 @@ const Scan = () => {
     }
     if (state?.text) {
       setTextInput(state.text);
+    }
+    // Check for a pending file from the front page
+    const pendingFile = consumePendingFile();
+    if (pendingFile) {
+      setFile(pendingFile);
     }
   }, [location.state]);
 
