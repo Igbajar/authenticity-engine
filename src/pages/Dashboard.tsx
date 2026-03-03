@@ -311,6 +311,12 @@ const Dashboard = () => {
                 <Files className="w-4 h-4 mr-2" />
                 Batch Scan
               </Button>
+              {scans.length > 0 && (
+                <Button variant="outline" onClick={() => setShowClearDialog(true)} className="text-destructive border-destructive/30 hover:bg-destructive/10">
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Clear History
+                </Button>
+              )}
               <Button variant="hero" onClick={() => navigate("/scan")}>
                 <Plus className="w-4 h-4 mr-2" />
                 New Scan
