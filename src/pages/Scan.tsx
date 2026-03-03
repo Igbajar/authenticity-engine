@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useCallback, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Upload, FileText, Link, X, Loader2, CheckCircle2, Brain, Search, FileCheck, Globe } from "lucide-react";
@@ -34,8 +34,20 @@ const Scan = () => {
   const { user } = useAuth();
   const { settings } = useAppSettings();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [useRealtimeProgress, setUseRealtimeProgress] = useState(false);
+
+  // Pre-populate from front page navigation state
+  useEffect(() => {
+    const state = location.state as { tab?: string; text?: string } | null;
+    if (state?.tab) {
+      setActiveTab(state.tab as "upload" | "paste" | "url");
+    }
+    if (state?.text) {
+      setTextInput(state.text);
+    }
+  }, [location.state]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
