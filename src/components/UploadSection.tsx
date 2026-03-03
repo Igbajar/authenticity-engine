@@ -55,7 +55,7 @@ const UploadSection = () => {
     if (activeTab === "paste" && textInput.trim()) {
       navigate("/scan", { state: { tab: "paste", text: textInput } });
     } else if (activeTab === "upload" && file) {
-      // Files can't be passed via state reliably, navigate with tab hint
+      setPendingFile(file);
       navigate("/scan", { state: { tab: "upload" } });
     } else if (activeTab === "url") {
       navigate("/scan", { state: { tab: "url" } });
