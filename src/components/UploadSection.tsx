@@ -50,8 +50,17 @@ const UploadSection = () => {
       navigate("/auth");
       return;
     }
-    // Navigate to the scan page which has the actual scanning functionality
-    navigate("/scan");
+    // Navigate to the scan page with the appropriate state
+    if (activeTab === "paste" && textInput.trim()) {
+      navigate("/scan", { state: { tab: "paste", text: textInput } });
+    } else if (activeTab === "upload" && file) {
+      // Files can't be passed via state reliably, navigate with tab hint
+      navigate("/scan", { state: { tab: "upload" } });
+    } else if (activeTab === "url") {
+      navigate("/scan", { state: { tab: "url" } });
+    } else {
+      navigate("/scan");
+    }
   };
 
   const tabs = [
