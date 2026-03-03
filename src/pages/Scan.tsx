@@ -34,7 +34,20 @@ const Scan = () => {
   const { user } = useAuth();
   const { settings } = useAppSettings();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+  const [useRealtimeProgress, setUseRealtimeProgress] = useState(false);
+
+  // Pre-populate from front page navigation state
+  useEffect(() => {
+    const state = location.state as { tab?: string; text?: string } | null;
+    if (state?.tab) {
+      setActiveTab(state.tab as "upload" | "paste" | "url");
+    }
+    if (state?.text) {
+      setTextInput(state.text);
+    }
+  }, [location.state]);
   const [useRealtimeProgress, setUseRealtimeProgress] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
