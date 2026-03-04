@@ -326,6 +326,29 @@ const Scan = () => {
 
       <main className="container mx-auto px-4 py-12">
         <div className="max-w-3xl mx-auto">
+          {/* Trial Banner */}
+          {subscription?.is_trial && subscription.days_remaining !== undefined && (
+            <div className="mb-8 rounded-xl border border-warning/30 bg-warning/5 p-4 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center shrink-0">
+                  <Clock className="w-5 h-5 text-warning" />
+                </div>
+                <div>
+                  <p className="font-medium text-foreground text-sm">
+                    Free trial — {subscription.days_remaining} day{subscription.days_remaining !== 1 ? "s" : ""} remaining
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {subscription.scans_used_this_month ?? 0} of {subscription.max_scans_per_month ?? "∞"} scans used this month
+                  </p>
+                </div>
+              </div>
+              <Button size="sm" onClick={() => navigate("/subscribe")} className="shrink-0">
+                <Crown className="w-4 h-4 mr-1.5" />
+                Upgrade
+              </Button>
+            </div>
+          )}
+
           {/* Header */}
           <div className="text-center mb-12">
             <h1 className="font-serif text-4xl md:text-5xl text-foreground mb-4">
