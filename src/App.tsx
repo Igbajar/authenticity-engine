@@ -17,6 +17,7 @@ import Admin from "./pages/Admin";
 import UniversityDashboard from "./pages/UniversityDashboard";
 import Subscribe from "./pages/Subscribe";
 import PaymentCallback from "./pages/PaymentCallback";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,9 @@ const App = () => (
               } />
               <Route path="/admin" element={
                 <ProtectedRoute requireSubscription={false}><Admin /></ProtectedRoute>
+              } />
+              <Route path="/settings" element={
+                <ProtectedRoute requireSubscription={false}><Settings /></ProtectedRoute>
               } />
               <Route path="/university" element={
                 <ProtectedRoute><UniversityDashboard /></ProtectedRoute>
