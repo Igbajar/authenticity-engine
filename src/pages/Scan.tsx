@@ -35,6 +35,7 @@ const Scan = () => {
 
   const { user } = useAuth();
   const { settings } = useAppSettings();
+  const { subscription } = useSubscription();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
