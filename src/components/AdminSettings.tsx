@@ -32,7 +32,7 @@ const SMTP_KEYS: (keyof SmtpConfig)[] = [
   'smtp_host', 'smtp_port', 'smtp_user', 'smtp_password', 'smtp_from', 'smtp_secure',
 ];
 
-const EXTRA_KEYS = ['smtp_last_tested', 'trial_emails_enabled'];
+const EXTRA_KEYS = ['smtp_last_tested', 'trial_emails_enabled', 'paystack_secret_key'];
 
 const AdminSettings = () => {
   const { settings, updateSetting, loading } = useAppSettings();
