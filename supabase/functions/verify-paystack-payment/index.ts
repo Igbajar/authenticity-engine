@@ -6,13 +6,34 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const BILLING_PERIOD_DAYS: Record<string, number> = {
+  hourly: 0,
+  daily: 1,
+  weekly: 7,
+  monthly: 30,
+  bi_annually: 182,
+  yearly: 365,
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const paystackSecretKey = Deno.env.get("PAYSTACK_SECRET_KEY");
+    let paystackSecretKey = Deno.env.get("PAYSTACK_SECRET_KEY");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const adminClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+    if (!paystackSecretKey) {
+      const { data: settingRow } = await adminClient
+        .from("app_settings")
+        .select("value")
+        .eq("key", "paystack_secret_key")
+        .maybeSingle();
+      if (settingRow?.value) paystackSecretKey = settingRow.value;
+    }
+
     if (!paystackSecretKey) {
       return new Response(
         JSON.stringify({ error: "Payment system not configured" }),
@@ -23,38 +44,31 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Not authenticated" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user }, error: userError } = await userClient.auth.getUser();
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Invalid session" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const { reference } = await req.json();
     if (!reference) {
       return new Response(JSON.stringify({ error: "Payment reference is required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     // Verify with Paystack
     const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-      headers: {
-        Authorization: `Bearer ${paystackSecretKey}`,
-      },
+      headers: { Authorization: `Bearer ${paystackSecretKey}` },
     });
-
     const verifyData = await verifyRes.json();
 
     if (!verifyData.status || verifyData.data.status !== "success") {
@@ -66,32 +80,24 @@ Deno.serve(async (req) => {
 
     const metadata = verifyData.data.metadata;
     const userId = metadata.user_id;
-    const planName = metadata.plan_name;
+    const tierId = metadata.tier_id;
+    const tierName = metadata.tier_name || "Unknown";
+    const billingPeriod = metadata.billing_period || "monthly";
     const couponCode = metadata.coupon_code;
 
-    // Verify the user matches
     if (userId !== user.id) {
       return new Response(JSON.stringify({ error: "User mismatch" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const adminClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-
-    // Find the matching subscription tier
-    const { data: tier } = await adminClient
-      .from("subscription_tiers")
-      .select("id, name")
-      .eq("name", planName)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (!tier) {
-      return new Response(JSON.stringify({ error: "Subscription tier not found" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Calculate end date based on billing period
+    const endDate = new Date();
+    const days = BILLING_PERIOD_DAYS[billingPeriod] || 30;
+    if (billingPeriod === "hourly") {
+      endDate.setHours(endDate.getHours() + 1);
+    } else {
+      endDate.setDate(endDate.getDate() + days);
     }
 
     // Deactivate existing subscriptions
@@ -101,15 +107,13 @@ Deno.serve(async (req) => {
       .eq("user_id", user.id)
       .eq("status", "active");
 
-    // Create new subscription (30 days)
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + 30);
-
+    // Create new subscription
     await adminClient.from("user_subscriptions").insert({
       user_id: user.id,
-      tier_id: tier.id,
+      tier_id: tierId,
       status: "active",
       is_trial: false,
+      billing_period: billingPeriod,
       billing_period_end: endDate.toISOString(),
       stripe_subscription_id: `paystack_${reference}`,
     });
@@ -135,14 +139,13 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, plan: planName, message: `Successfully subscribed to ${planName}` }),
+      JSON.stringify({ success: true, plan: tierName, message: `Successfully subscribed to ${tierName}` }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
     console.error("Verify payment error:", err);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
