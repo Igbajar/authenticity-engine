@@ -27,6 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import AdminSettings from "@/components/AdminSettings";
  import AdminSubscriptionManager from "@/components/AdminSubscriptionManager";
  import AdminCouponManager from "@/components/AdminCouponManager";
+ import AdminTierPricingEditor from "@/components/AdminTierPricingEditor";
 
 interface User {
   id: string;
