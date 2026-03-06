@@ -91,6 +91,7 @@ const AdminSettings = () => {
         }));
         setSmtpLastTested(map['smtp_last_tested'] || null);
         setTrialEmailsEnabled(map['trial_emails_enabled'] !== 'false');
+        if (map['paystack_secret_key']) setPaystackKey(map['paystack_secret_key']);
       }
     } catch (err) {
       console.error('Failed to fetch SMTP settings:', err);
