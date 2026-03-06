@@ -281,6 +281,44 @@ const AdminSettings = () => {
         </div>
       </div>
 
+      {/* Paystack Settings */}
+      <div className="rounded-2xl border border-border bg-card p-6 space-y-6">
+        <div className="flex items-center gap-3 pb-4 border-b border-border">
+          <CreditCard className="w-5 h-5 text-accent" />
+          <h3 className="font-medium text-foreground">Paystack API Key</h3>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="paystackKey">Secret Key</Label>
+            <div className="relative">
+              <Input
+                id="paystackKey"
+                type={showPassword ? 'text' : 'password'}
+                value={paystackKey}
+                onChange={(e) => setPaystackKey(e.target.value)}
+                placeholder="sk_live_xxxxxxxxxx"
+                className="pr-10"
+              />
+              <button type="button" onClick={() => setShowPassword(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Get your secret key from your Paystack Dashboard → Settings → API Keys
+            </p>
+          </div>
+
+          <Button onClick={handleSavePaystack} disabled={paystackSaving || !paystackKey.trim()}>
+            {paystackSaving ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</>
+            ) : (
+              <><Save className="w-4 h-4 mr-2" />Save Paystack Key</>
+            )}
+          </Button>
+        </div>
+      </div>
+
       {/* SMTP Settings */}
       <div className="rounded-2xl border border-border bg-card p-6 space-y-6">
         <div className="flex items-center justify-between pb-4 border-b border-border">
