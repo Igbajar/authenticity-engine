@@ -8,7 +8,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Save, Settings, Mail, Eye, EyeOff, Bell, CheckCircle2, XCircle, History, RefreshCw } from "lucide-react";
+import { Loader2, Save, Settings, Mail, Eye, EyeOff, Bell, CheckCircle2, XCircle, History, RefreshCw, CreditCard } from "lucide-react";
 
 interface SmtpConfig {
   smtp_host: string;
