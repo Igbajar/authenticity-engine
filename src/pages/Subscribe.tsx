@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { Check, Lock, Shield, Zap, Clock, Loader2, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAppSettings } from "@/hooks/useAppSettings";
@@ -12,65 +14,87 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import CouponRedeemInput from "@/components/CouponRedeemInput";
 
+type BillingPeriod = "hourly" | "daily" | "weekly" | "monthly" | "bi_annually" | "yearly";
+
+interface TierData {
+  id: string;
+  name: string;
+  description: string | null;
+  price_hourly: number;
+  price_daily: number;
+  price_weekly: number;
+  price_monthly: number;
+  price_bi_annually: number;
+  price_yearly: number;
+  max_scans_per_month: number | null;
+  max_words_per_scan: number | null;
+  features: string[];
+  is_active: boolean;
+}
+
+const PERIOD_LABELS: Record<BillingPeriod, string> = {
+  hourly: "Hourly",
+  daily: "Daily",
+  weekly: "Weekly",
+  monthly: "Monthly",
+  bi_annually: "6 Months",
+  yearly: "Yearly",
+};
+
+const PERIOD_PRICE_KEY: Record<BillingPeriod, keyof TierData> = {
+  hourly: "price_hourly",
+  daily: "price_daily",
+  weekly: "price_weekly",
+  monthly: "price_monthly",
+  bi_annually: "price_bi_annually",
+  yearly: "price_yearly",
+};
+
 const Subscribe = () => {
   const { settings } = useAppSettings();
   const { subscription } = useSubscription();
   const { user } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [couponCode, setCouponCode] = useState("");
+  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
+  const [tiers, setTiers] = useState<TierData[]>([]);
+  const [tiersLoading, setTiersLoading] = useState(true);
 
-  const plans = [
-    {
-      name: "Pro",
-      price: "$19",
-      period: "/month",
-      description: "For individual researchers and students",
-      features: [
-        "100 scans per month",
-        "Up to 25,000 words per scan",
-        "AI detection",
-        "Citation checker",
-        "PDF reports",
-        "Email support",
-      ],
-      popular: false,
-    },
-    {
-      name: "Premium",
-      price: "$49",
-      period: "/month",
-      description: "For professionals and educators",
-      features: [
-        "Unlimited scans",
-        "Up to 100,000 words per scan",
-        "Advanced AI detection",
-        "Citation & bibliography tools",
-        "Batch scanning",
-        "API access",
-        "Priority support",
-      ],
-      popular: true,
-    },
-    {
-      name: "University",
-      price: "Custom",
-      period: "",
-      description: "For institutions and teams",
-      features: [
-        "Everything in Premium",
-        "Unlimited users",
-        "Admin dashboard",
-        "SSO integration",
-        "Custom integrations",
-        "Dedicated support",
-        "SLA guarantee",
-      ],
-      popular: false,
-    },
-  ];
+  useEffect(() => {
+    const fetchTiers = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("subscription_tiers")
+          .select("id, name, description, price_hourly, price_daily, price_weekly, price_monthly, price_bi_annually, price_yearly, max_scans_per_month, max_words_per_scan, features, is_active")
+          .eq("is_active", true)
+          .order("price_monthly", { ascending: true });
 
-  const handleSubscribe = async (planName: string) => {
-    if (planName === "University") {
+        if (error) throw error;
+        setTiers(
+          (data ?? []).map((t: any) => ({
+            ...t,
+            features: Array.isArray(t.features) ? t.features : [],
+          }))
+        );
+      } catch (err) {
+        console.error("Failed to fetch tiers:", err);
+      } finally {
+        setTiersLoading(false);
+      }
+    };
+    fetchTiers();
+  }, []);
+
+  const getPrice = (tier: TierData): number => {
+    return (tier[PERIOD_PRICE_KEY[billingPeriod]] as number) || 0;
+  };
+
+  const formatNaira = (amount: number) => {
+    return `₦${amount.toLocaleString()}`;
+  };
+
+  const handleSubscribe = async (tier: TierData) => {
+    if (tier.name === "University") {
       toast({ title: "Contact Sales", description: "Please reach out to our team for University pricing." });
       return;
     }
@@ -80,12 +104,19 @@ const Subscribe = () => {
       return;
     }
 
-    setLoadingPlan(planName);
+    const price = getPrice(tier);
+    if (price <= 0) {
+      toast({ title: "Not available", description: `This tier is not available for ${PERIOD_LABELS[billingPeriod]} billing.`, variant: "destructive" });
+      return;
+    }
+
+    setLoadingPlan(tier.id);
     try {
       const callbackUrl = `${window.location.origin}/payment/callback`;
       const { data, error } = await supabase.functions.invoke("create-paystack-checkout", {
         body: {
-          plan_name: planName,
+          tier_id: tier.id,
+          billing_period: billingPeriod,
           coupon_code: couponCode.trim() || null,
           callback_url: callbackUrl,
         },
@@ -100,7 +131,6 @@ const Subscribe = () => {
         return;
       }
 
-      // Redirect to Paystack checkout
       window.location.href = data.authorization_url;
     } catch (err) {
       toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" });
@@ -127,7 +157,7 @@ const Subscribe = () => {
               </div>
             </div>
             {subscription.days_remaining <= 3 && (
-              <span className="text-xs bg-warning/20 text-warning px-2 py-1 rounded-full">
+              <span className="text-xs bg-destructive/20 text-destructive px-2 py-1 rounded-full">
                 Expiring soon
               </span>
             )}
@@ -148,6 +178,28 @@ const Subscribe = () => {
           </p>
         </div>
 
+        {/* Billing Period Selector */}
+        <div className="max-w-3xl mx-auto mb-8">
+          <p className="text-sm text-muted-foreground text-center mb-3">Select billing period:</p>
+          <RadioGroup
+            value={billingPeriod}
+            onValueChange={(v) => setBillingPeriod(v as BillingPeriod)}
+            className="flex flex-wrap justify-center gap-2"
+          >
+            {(Object.entries(PERIOD_LABELS) as [BillingPeriod, string][]).map(([key, label]) => (
+              <div key={key} className="flex items-center">
+                <RadioGroupItem value={key} id={`period-${key}`} className="sr-only peer" />
+                <Label
+                  htmlFor={`period-${key}`}
+                  className="px-4 py-2 rounded-lg border border-border bg-card text-sm cursor-pointer transition-all peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:text-primary hover:bg-muted/50"
+                >
+                  {label}
+                </Label>
+              </div>
+            ))}
+          </RadioGroup>
+        </div>
+
         {/* Coupon Code Input */}
         <div className="max-w-md mx-auto mb-8">
           <div className="flex items-center gap-2">
@@ -163,60 +215,84 @@ const Subscribe = () => {
         </div>
 
         {/* Plans */}
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto mb-12">
-          {plans.map((plan) => (
-            <Card
-              key={plan.name}
-              className={`relative ${
-                plan.popular
-                  ? "border-primary shadow-lg scale-105"
-                  : "border-border"
-              }`}
-            >
-              {plan.popular && (
-                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary">
-                  Most Popular
-                </Badge>
-              )}
-              <CardHeader className="text-center pb-4">
-                <CardTitle className="text-2xl font-serif">{plan.name}</CardTitle>
-                <div className="mt-4">
-                  <span className="text-4xl font-bold text-foreground">
-                    {plan.price}
-                  </span>
-                  <span className="text-muted-foreground">{plan.period}</span>
-                </div>
-                <CardDescription className="mt-2">
-                  {plan.description}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3 mb-6">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-primary flex-shrink-0" />
-                      <span className="text-sm text-muted-foreground">
-                        {feature}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  className="w-full"
-                  variant={plan.popular ? "default" : "outline"}
-                  disabled={loadingPlan !== null}
-                  onClick={() => handleSubscribe(plan.name)}
+        {tiersLoading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-accent" />
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto mb-12">
+            {tiers.map((tier, index) => {
+              const price = getPrice(tier);
+              const isPopular = index === 1;
+              const isUniversity = tier.name === "University";
+
+              return (
+                <Card
+                  key={tier.id}
+                  className={`relative ${
+                    isPopular ? "border-primary shadow-lg scale-105" : "border-border"
+                  }`}
                 >
-                  {loadingPlan === plan.name ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
-                  ) : (
-                    plan.name === "University" ? "Contact Sales" : "Subscribe Now"
+                  {isPopular && (
+                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary">
+                      Most Popular
+                    </Badge>
                   )}
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  <CardHeader className="text-center pb-4">
+                    <CardTitle className="text-2xl font-serif">{tier.name}</CardTitle>
+                    <div className="mt-4">
+                      <span className="text-4xl font-bold text-foreground">
+                        {isUniversity ? "Custom" : formatNaira(price)}
+                      </span>
+                      {!isUniversity && (
+                        <span className="text-muted-foreground">/{PERIOD_LABELS[billingPeriod].toLowerCase()}</span>
+                      )}
+                    </div>
+                    <CardDescription className="mt-2">
+                      {tier.description}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-3 mb-6">
+                      <li className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-primary flex-shrink-0" />
+                        <span className="text-sm text-muted-foreground">
+                          {tier.max_scans_per_month ? `${tier.max_scans_per_month} scans/month` : "Unlimited scans"}
+                        </span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-primary flex-shrink-0" />
+                        <span className="text-sm text-muted-foreground">
+                          Up to {(tier.max_words_per_scan ?? 25000).toLocaleString()} words/scan
+                        </span>
+                      </li>
+                      {tier.features.map((feature, i) => (
+                        <li key={i} className="flex items-center gap-2">
+                          <Check className="w-4 h-4 text-primary flex-shrink-0" />
+                          <span className="text-sm text-muted-foreground">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <Button
+                      className="w-full"
+                      variant={isPopular ? "default" : "outline"}
+                      disabled={loadingPlan !== null}
+                      onClick={() => handleSubscribe(tier)}
+                    >
+                      {loadingPlan === tier.id ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
+                      ) : isUniversity ? (
+                        "Contact Sales"
+                      ) : (
+                        "Subscribe Now"
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
 
         {/* Coupon Redemption (for trial/extra scans) */}
         <div className="max-w-md mx-auto mb-12">

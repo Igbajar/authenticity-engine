@@ -573,6 +573,7 @@ export type Database = {
       subscription_tiers: {
         Row: {
           created_at: string
+          currency: string
           description: string | null
           features: Json | null
           id: string
@@ -580,11 +581,16 @@ export type Database = {
           max_scans_per_month: number | null
           max_words_per_scan: number | null
           name: string
+          price_bi_annually: number
+          price_daily: number
+          price_hourly: number
           price_monthly: number
+          price_weekly: number
           price_yearly: number
         }
         Insert: {
           created_at?: string
+          currency?: string
           description?: string | null
           features?: Json | null
           id?: string
@@ -592,11 +598,16 @@ export type Database = {
           max_scans_per_month?: number | null
           max_words_per_scan?: number | null
           name: string
+          price_bi_annually?: number
+          price_daily?: number
+          price_hourly?: number
           price_monthly?: number
+          price_weekly?: number
           price_yearly?: number
         }
         Update: {
           created_at?: string
+          currency?: string
           description?: string | null
           features?: Json | null
           id?: string
@@ -604,7 +615,11 @@ export type Database = {
           max_scans_per_month?: number | null
           max_words_per_scan?: number | null
           name?: string
+          price_bi_annually?: number
+          price_daily?: number
+          price_hourly?: number
           price_monthly?: number
+          price_weekly?: number
           price_yearly?: number
         }
         Relationships: []
@@ -656,6 +671,7 @@ export type Database = {
       }
       user_subscriptions: {
         Row: {
+          billing_period: string
           billing_period_end: string | null
           billing_period_start: string
           created_at: string
@@ -672,6 +688,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          billing_period?: string
           billing_period_end?: string | null
           billing_period_start?: string
           created_at?: string
@@ -688,6 +705,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          billing_period?: string
           billing_period_end?: string | null
           billing_period_start?: string
           created_at?: string

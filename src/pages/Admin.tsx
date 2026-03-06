@@ -27,6 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import AdminSettings from "@/components/AdminSettings";
  import AdminSubscriptionManager from "@/components/AdminSubscriptionManager";
  import AdminCouponManager from "@/components/AdminCouponManager";
+ import AdminTierPricingEditor from "@/components/AdminTierPricingEditor";
 
 interface User {
   id: string;
@@ -404,75 +405,7 @@ const Admin = () => {
         )}
 
         {/* Subscriptions Tab */}
-        {activeTab === "subscriptions" && (
-          <div className="space-y-6">
-            <div>
-              <h2 className="font-serif text-2xl text-foreground">Subscription Tiers</h2>
-              <p className="text-muted-foreground">Manage pricing and features</p>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-6">
-              {tiers.map((tier) => (
-                <div
-                  key={tier.id}
-                  className={`rounded-2xl border bg-card p-6 ${
-                    tier.name === "Pro" ? "border-accent shadow-glow" : "border-border"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-serif text-xl text-foreground">{tier.name}</h3>
-                    {tier.is_active ? (
-                      <span className="text-xs bg-success/10 text-success px-2 py-1 rounded-full">
-                        Active
-                      </span>
-                    ) : (
-                      <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full">
-                        Inactive
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="mb-4">
-                    <span className="font-serif text-3xl text-foreground">
-                      ${tier.price_monthly}
-                    </span>
-                    <span className="text-muted-foreground">/month</span>
-                  </div>
-
-                  <p className="text-sm text-muted-foreground mb-4">{tier.description}</p>
-
-                  <div className="space-y-2 mb-6">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Scans/month</span>
-                      <span className="text-foreground">
-                        {tier.max_scans_per_month || "Unlimited"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Words/scan</span>
-                      <span className="text-foreground">
-                        {tier.max_words_per_scan.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    {tier.features.map((feature, i) => (
-                      <div key={i} className="flex items-center gap-2 text-sm">
-                        <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
-                        <span className="text-muted-foreground">{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <Button variant="outline" className="w-full mt-6">
-                    Edit Tier
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {activeTab === "subscriptions" && <AdminTierPricingEditor />}
 
         {/* Coupons Tab */}
         {activeTab === "coupons" && <AdminCouponManager />}

@@ -8,7 +8,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Save, Settings, Mail, Eye, EyeOff, Bell, CheckCircle2, XCircle, History, RefreshCw } from "lucide-react";
+import { Loader2, Save, Settings, Mail, Eye, EyeOff, Bell, CheckCircle2, XCircle, History, RefreshCw, CreditCard } from "lucide-react";
 
 interface SmtpConfig {
   smtp_host: string;
@@ -32,7 +32,7 @@ const SMTP_KEYS: (keyof SmtpConfig)[] = [
   'smtp_host', 'smtp_port', 'smtp_user', 'smtp_password', 'smtp_from', 'smtp_secure',
 ];
 
-const EXTRA_KEYS = ['smtp_last_tested', 'trial_emails_enabled'];
+const EXTRA_KEYS = ['smtp_last_tested', 'trial_emails_enabled', 'paystack_secret_key'];
 
 const AdminSettings = () => {
   const { settings, updateSetting, loading } = useAppSettings();
@@ -54,6 +54,10 @@ const AdminSettings = () => {
   const [smtpSaving, setSmtpSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [trialToggleSaving, setTrialToggleSaving] = useState(false);
+
+  // Paystack
+  const [paystackKey, setPaystackKey] = useState('');
+  const [paystackSaving, setPaystackSaving] = useState(false);
 
   // Email logs state
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
@@ -87,6 +91,7 @@ const AdminSettings = () => {
         }));
         setSmtpLastTested(map['smtp_last_tested'] || null);
         setTrialEmailsEnabled(map['trial_emails_enabled'] !== 'false');
+        if (map['paystack_secret_key']) setPaystackKey(map['paystack_secret_key']);
       }
     } catch (err) {
       console.error('Failed to fetch SMTP settings:', err);
@@ -125,6 +130,22 @@ const AdminSettings = () => {
       toast({ title: "Error saving settings", description: "Failed to update app name", variant: "destructive" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSavePaystack = async () => {
+    setPaystackSaving(true);
+    try {
+      const now = new Date().toISOString();
+      await supabase
+        .from('app_settings')
+        .upsert({ key: 'paystack_secret_key', value: paystackKey, updated_at: now }, { onConflict: 'key' });
+      toast({ title: "Paystack API key saved", description: "Payment integration is now configured." });
+    } catch (err) {
+      console.error('Failed to save Paystack key:', err);
+      toast({ title: "Failed to save", variant: "destructive" });
+    } finally {
+      setPaystackSaving(false);
     }
   };
 
@@ -255,6 +276,44 @@ const AdminSettings = () => {
               <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>
             ) : (
               <><Save className="w-4 h-4 mr-2" />Save Changes</>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* Paystack Settings */}
+      <div className="rounded-2xl border border-border bg-card p-6 space-y-6">
+        <div className="flex items-center gap-3 pb-4 border-b border-border">
+          <CreditCard className="w-5 h-5 text-accent" />
+          <h3 className="font-medium text-foreground">Paystack API Key</h3>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="paystackKey">Secret Key</Label>
+            <div className="relative">
+              <Input
+                id="paystackKey"
+                type={showPassword ? 'text' : 'password'}
+                value={paystackKey}
+                onChange={(e) => setPaystackKey(e.target.value)}
+                placeholder="sk_live_xxxxxxxxxx"
+                className="pr-10"
+              />
+              <button type="button" onClick={() => setShowPassword(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Get your secret key from your Paystack Dashboard → Settings → API Keys
+            </p>
+          </div>
+
+          <Button onClick={handleSavePaystack} disabled={paystackSaving || !paystackKey.trim()}>
+            {paystackSaving ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</>
+            ) : (
+              <><Save className="w-4 h-4 mr-2" />Save Paystack Key</>
             )}
           </Button>
         </div>
