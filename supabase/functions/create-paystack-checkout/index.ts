@@ -6,16 +6,52 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const BILLING_PERIOD_PRICE_COLUMN: Record<string, string> = {
+  hourly: "price_hourly",
+  daily: "price_daily",
+  weekly: "price_weekly",
+  monthly: "price_monthly",
+  bi_annually: "price_bi_annually",
+  yearly: "price_yearly",
+};
+
+const BILLING_PERIOD_DAYS: Record<string, number> = {
+  hourly: 0, // special: hours
+  daily: 1,
+  weekly: 7,
+  monthly: 30,
+  bi_annually: 182,
+  yearly: 365,
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const paystackSecretKey = Deno.env.get("PAYSTACK_SECRET_KEY");
+    // Try edge function secret first, then fall back to app_settings
+    let paystackSecretKey = Deno.env.get("PAYSTACK_SECRET_KEY");
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const adminClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+    if (!paystackSecretKey) {
+      // Check app_settings for paystack_secret_key
+      const { data: settingRow } = await adminClient
+        .from("app_settings")
+        .select("value")
+        .eq("key", "paystack_secret_key")
+        .maybeSingle();
+
+      if (settingRow?.value) {
+        paystackSecretKey = settingRow.value;
+      }
+    }
+
     if (!paystackSecretKey) {
       return new Response(
-        JSON.stringify({ error: "Payment system not configured. Please contact support." }),
+        JSON.stringify({ error: "Payment system not configured. Please ask an admin to set the Paystack API key in Settings." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -28,7 +64,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -40,24 +75,41 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { plan_name, coupon_code, callback_url } = await req.json();
+    const { tier_id, billing_period, coupon_code, callback_url } = await req.json();
 
-    if (!plan_name || !callback_url) {
-      return new Response(JSON.stringify({ error: "Plan and callback URL are required" }), {
+    if (!tier_id || !billing_period || !callback_url) {
+      return new Response(JSON.stringify({ error: "Tier, billing period, and callback URL are required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Determine price based on plan
-    const planPrices: Record<string, number> = {
-      Pro: 19_00, // Amount in kobo/cents (Paystack uses smallest currency unit)
-      Premium: 49_00,
-    };
+    const priceColumn = BILLING_PERIOD_PRICE_COLUMN[billing_period];
+    if (!priceColumn) {
+      return new Response(JSON.stringify({ error: "Invalid billing period" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    let amount = planPrices[plan_name];
-    if (!amount) {
-      return new Response(JSON.stringify({ error: "Invalid plan selected" }), {
+    // Fetch tier from DB
+    const { data: tier, error: tierError } = await adminClient
+      .from("subscription_tiers")
+      .select("id, name, " + priceColumn)
+      .eq("id", tier_id)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (tierError || !tier) {
+      return new Response(JSON.stringify({ error: "Invalid or inactive tier" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    let amountNaira = Number((tier as Record<string, unknown>)[priceColumn]) || 0;
+    if (amountNaira <= 0) {
+      return new Response(JSON.stringify({ error: `This tier has no pricing set for ${billing_period} billing` }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -65,8 +117,6 @@ Deno.serve(async (req) => {
 
     // Apply coupon if provided
     let discountPercent = 0;
-    const adminClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-
     if (coupon_code && coupon_code.trim()) {
       const { data: coupon } = await adminClient
         .from("coupons")
@@ -80,7 +130,6 @@ Deno.serve(async (req) => {
         const isExpired = coupon.expires_at && new Date(coupon.expires_at) < new Date();
         const isMaxed = coupon.max_redemptions !== null && coupon.times_redeemed >= coupon.max_redemptions;
 
-        // Check if user already redeemed
         const { data: existing } = await adminClient
           .from("coupon_redemptions")
           .select("id")
@@ -90,14 +139,13 @@ Deno.serve(async (req) => {
 
         if (!isExpired && !isMaxed && !existing && couponType === "discount") {
           discountPercent = coupon.value;
-          amount = Math.round(amount * (1 - discountPercent / 100));
+          amountNaira = Math.round(amountNaira * (1 - discountPercent / 100));
         }
       }
     }
 
-    // Convert to Naira (multiply by 100 for kobo) — prices are in USD cents, convert
-    // Paystack uses kobo for NGN. Adjust currency/amount as needed.
-    const amountInMinorUnit = amount * 100; // $19 = 1900 cents → 190000 kobo equivalent
+    // Paystack uses kobo (smallest unit for NGN): 1 Naira = 100 kobo
+    const amountKobo = Math.round(amountNaira * 100);
 
     // Initialize Paystack transaction
     const paystackRes = await fetch("https://api.paystack.co/transaction/initialize", {
@@ -108,12 +156,14 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         email: user.email,
-        amount: amountInMinorUnit,
-        currency: "USD",
+        amount: amountKobo,
+        currency: "NGN",
         callback_url: callback_url,
         metadata: {
           user_id: user.id,
-          plan_name: plan_name,
+          tier_id: tier_id,
+          tier_name: tier.name,
+          billing_period: billing_period,
           coupon_code: coupon_code || null,
           discount_percent: discountPercent,
         },
