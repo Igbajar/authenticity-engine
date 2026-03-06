@@ -55,6 +55,10 @@ const AdminSettings = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [trialToggleSaving, setTrialToggleSaving] = useState(false);
 
+  // Paystack
+  const [paystackKey, setPaystackKey] = useState('');
+  const [paystackSaving, setPaystackSaving] = useState(false);
+
   // Email logs state
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
