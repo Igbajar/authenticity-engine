@@ -133,6 +133,22 @@ const AdminSettings = () => {
     }
   };
 
+  const handleSavePaystack = async () => {
+    setPaystackSaving(true);
+    try {
+      const now = new Date().toISOString();
+      await supabase
+        .from('app_settings')
+        .upsert({ key: 'paystack_secret_key', value: paystackKey, updated_at: now }, { onConflict: 'key' });
+      toast({ title: "Paystack API key saved", description: "Payment integration is now configured." });
+    } catch (err) {
+      console.error('Failed to save Paystack key:', err);
+      toast({ title: "Failed to save", variant: "destructive" });
+    } finally {
+      setPaystackSaving(false);
+    }
+  };
+
   const handleSaveSmtp = async () => {
     setSmtpSaving(true);
     try {
