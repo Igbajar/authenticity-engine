@@ -87,6 +87,40 @@ const Subscribe = () => {
     fetchTiers();
   }, []);
 
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim() || !user) {
+      if (!user) toast({ title: "Sign in required", description: "Please sign in to use a coupon.", variant: "destructive" });
+      return;
+    }
+    setCouponApplying(true);
+    setCouponResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("redeem-coupon", {
+        body: { code: couponCode.trim().toUpperCase() },
+      });
+      if (error) {
+        toast({ title: "Coupon error", description: error.message || "Could not redeem coupon", variant: "destructive" });
+      } else if (data?.error) {
+        toast({ title: "Invalid coupon", description: data.error, variant: "destructive" });
+      } else {
+        const couponType = data.coupon_type || "";
+        if (couponType === "discount") {
+          setCouponResult({ type: "discount", message: data.message });
+          toast({ title: "Discount coupon", description: data.message });
+        } else {
+          setCouponResult({ type: couponType, message: data.message });
+          toast({ title: "Coupon redeemed!", description: data.message });
+          setCouponCode("");
+          refetchSubscription();
+        }
+      }
+    } catch {
+      toast({ title: "Error", description: "Could not process coupon", variant: "destructive" });
+    } finally {
+      setCouponApplying(false);
+    }
+  };
+
   const getPrice = (tier: TierData): number => {
     return (tier[PERIOD_PRICE_KEY[billingPeriod]] as number) || 0;
   };
