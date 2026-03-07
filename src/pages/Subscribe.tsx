@@ -12,7 +12,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import CouponRedeemInput from "@/components/CouponRedeemInput";
+
 
 type BillingPeriod = "hourly" | "daily" | "weekly" | "monthly" | "bi_annually" | "yearly";
 
