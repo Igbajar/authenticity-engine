@@ -202,16 +202,28 @@ const Subscribe = () => {
 
         {/* Coupon Code Input */}
         <div className="max-w-md mx-auto mb-8">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mb-2">
             <Tag className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">Have a coupon code? Enter it below for a discount:</span>
           </div>
-          <Input
-            className="mt-2"
-            placeholder="Enter coupon code"
-            value={couponCode}
-            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-          />
+          <div className="flex gap-2">
+            <Input
+              placeholder="Enter coupon code"
+              value={couponCode}
+              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+            />
+            <Button
+              variant="outline"
+              disabled={!couponCode.trim()}
+              onClick={() => {
+                if (couponCode.trim()) {
+                  toast({ title: "Coupon applied", description: `Code "${couponCode}" will be applied at checkout.` });
+                }
+              }}
+            >
+              Apply
+            </Button>
+          </div>
         </div>
 
         {/* Plans */}
