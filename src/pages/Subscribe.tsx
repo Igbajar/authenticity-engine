@@ -344,10 +344,6 @@ const Subscribe = () => {
           </div>
         )}
 
-        {/* Coupon Redemption (for trial/extra scans) */}
-        <div className="max-w-md mx-auto mb-12">
-          <CouponRedeemInput />
-        </div>
 
         {/* Trust indicators */}
         <div className="flex flex-wrap justify-center gap-8 text-muted-foreground">
