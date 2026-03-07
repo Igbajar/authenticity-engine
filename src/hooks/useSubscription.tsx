@@ -100,7 +100,7 @@ export const useSubscription = () => {
     };
 
     fetchSubscription();
-  }, [user]);
+  }, [user, fetchCount]);
 
-  return { subscription, loading, isSubscribed };
+  return { subscription, loading, isSubscribed, refetch };
 };
