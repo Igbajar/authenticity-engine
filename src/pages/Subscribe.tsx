@@ -12,7 +12,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import CouponRedeemInput from "@/components/CouponRedeemInput";
+
 
 type BillingPeriod = "hourly" | "daily" | "weekly" | "monthly" | "bi_annually" | "yearly";
 
@@ -52,10 +52,12 @@ const PERIOD_PRICE_KEY: Record<BillingPeriod, keyof TierData> = {
 
 const Subscribe = () => {
   const { settings } = useAppSettings();
-  const { subscription } = useSubscription();
+  const { subscription, refetch: refetchSubscription } = useSubscription();
   const { user } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [couponCode, setCouponCode] = useState("");
+  const [couponApplying, setCouponApplying] = useState(false);
+  const [couponResult, setCouponResult] = useState<{ type: string; message: string } | null>(null);
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
   const [tiers, setTiers] = useState<TierData[]>([]);
   const [tiersLoading, setTiersLoading] = useState(true);
@@ -84,6 +86,40 @@ const Subscribe = () => {
     };
     fetchTiers();
   }, []);
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim() || !user) {
+      if (!user) toast({ title: "Sign in required", description: "Please sign in to use a coupon.", variant: "destructive" });
+      return;
+    }
+    setCouponApplying(true);
+    setCouponResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("redeem-coupon", {
+        body: { code: couponCode.trim().toUpperCase() },
+      });
+      if (error) {
+        toast({ title: "Coupon error", description: error.message || "Could not redeem coupon", variant: "destructive" });
+      } else if (data?.error) {
+        toast({ title: "Invalid coupon", description: data.error, variant: "destructive" });
+      } else {
+        const couponType = data.coupon_type || "";
+        if (couponType === "discount") {
+          setCouponResult({ type: "discount", message: data.message });
+          toast({ title: "Discount coupon", description: data.message });
+        } else {
+          setCouponResult({ type: couponType, message: data.message });
+          toast({ title: "Coupon redeemed!", description: data.message });
+          setCouponCode("");
+          refetchSubscription();
+        }
+      }
+    } catch {
+      toast({ title: "Error", description: "Could not process coupon", variant: "destructive" });
+    } finally {
+      setCouponApplying(false);
+    }
+  };
 
   const getPrice = (tier: TierData): number => {
     return (tier[PERIOD_PRICE_KEY[billingPeriod]] as number) || 0;
@@ -204,26 +240,28 @@ const Subscribe = () => {
         <div className="max-w-md mx-auto mb-8">
           <div className="flex items-center gap-2 mb-2">
             <Tag className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Have a coupon code? Enter it below for a discount:</span>
+            <span className="text-sm text-muted-foreground">Have a coupon code? Enter it to get access or a discount:</span>
           </div>
           <div className="flex gap-2">
             <Input
               placeholder="Enter coupon code"
               value={couponCode}
-              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+              onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponResult(null); }}
+              onKeyDown={(e) => e.key === "Enter" && !couponApplying && couponCode.trim() && handleApplyCoupon()}
             />
             <Button
               variant="outline"
-              disabled={!couponCode.trim()}
-              onClick={() => {
-                if (couponCode.trim()) {
-                  toast({ title: "Coupon applied", description: `Code "${couponCode}" will be applied at checkout.` });
-                }
-              }}
+              disabled={!couponCode.trim() || couponApplying}
+              onClick={handleApplyCoupon}
             >
-              Apply
+              {couponApplying ? <Loader2 className="w-4 h-4 animate-spin" /> : "Apply"}
             </Button>
           </div>
+          {couponResult && (
+            <p className={`text-sm mt-2 ${couponResult.type === "discount" ? "text-muted-foreground" : "text-primary"}`}>
+              ✓ {couponResult.message}
+            </p>
+          )}
         </div>
 
         {/* Plans */}
@@ -306,10 +344,6 @@ const Subscribe = () => {
           </div>
         )}
 
-        {/* Coupon Redemption (for trial/extra scans) */}
-        <div className="max-w-md mx-auto mb-12">
-          <CouponRedeemInput />
-        </div>
 
         {/* Trust indicators */}
         <div className="flex flex-wrap justify-center gap-8 text-muted-foreground">
