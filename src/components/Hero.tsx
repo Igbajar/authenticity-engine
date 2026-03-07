@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Shield, Zap, Brain } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Hero = () => {
   return (
