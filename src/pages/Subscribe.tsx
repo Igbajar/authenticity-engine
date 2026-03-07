@@ -206,26 +206,28 @@ const Subscribe = () => {
         <div className="max-w-md mx-auto mb-8">
           <div className="flex items-center gap-2 mb-2">
             <Tag className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Have a coupon code? Enter it below for a discount:</span>
+            <span className="text-sm text-muted-foreground">Have a coupon code? Enter it to get access or a discount:</span>
           </div>
           <div className="flex gap-2">
             <Input
               placeholder="Enter coupon code"
               value={couponCode}
-              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+              onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponResult(null); }}
+              onKeyDown={(e) => e.key === "Enter" && !couponApplying && couponCode.trim() && handleApplyCoupon()}
             />
             <Button
               variant="outline"
-              disabled={!couponCode.trim()}
-              onClick={() => {
-                if (couponCode.trim()) {
-                  toast({ title: "Coupon applied", description: `Code "${couponCode}" will be applied at checkout.` });
-                }
-              }}
+              disabled={!couponCode.trim() || couponApplying}
+              onClick={handleApplyCoupon}
             >
-              Apply
+              {couponApplying ? <Loader2 className="w-4 h-4 animate-spin" /> : "Apply"}
             </Button>
           </div>
+          {couponResult && (
+            <p className={`text-sm mt-2 ${couponResult.type === "discount" ? "text-muted-foreground" : "text-primary"}`}>
+              ✓ {couponResult.message}
+            </p>
+          )}
         </div>
 
         {/* Plans */}
