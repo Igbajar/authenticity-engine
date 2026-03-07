@@ -20,6 +20,9 @@ export const useSubscription = () => {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [fetchCount, setFetchCount] = useState(0);
+
+  const refetch = () => setFetchCount((c) => c + 1);
 
   useEffect(() => {
     const fetchSubscription = async () => {
