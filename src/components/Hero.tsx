@@ -37,12 +37,16 @@ const Hero = () => {
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-fade-in" style={{ animationDelay: '0.3s' }}>
-            <Button variant="hero" size="xl" className="group">
-              Start Checking Free
-              <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+            <Button variant="hero" size="xl" className="group" asChild>
+              <Link to="/auth">
+                Start Checking Free
+                <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+              </Link>
             </Button>
-            <Button variant="glass" size="xl">
-              Request Demo
+            <Button variant="glass" size="xl" asChild>
+              <a href="mailto:support@rcheck.com?subject=Demo%20Request">
+                Request Demo
+              </a>
             </Button>
           </div>
 
