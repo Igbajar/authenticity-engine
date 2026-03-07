@@ -52,10 +52,12 @@ const PERIOD_PRICE_KEY: Record<BillingPeriod, keyof TierData> = {
 
 const Subscribe = () => {
   const { settings } = useAppSettings();
-  const { subscription } = useSubscription();
+  const { subscription, refetch: refetchSubscription } = useSubscription();
   const { user } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [couponCode, setCouponCode] = useState("");
+  const [couponApplying, setCouponApplying] = useState(false);
+  const [couponResult, setCouponResult] = useState<{ type: string; message: string } | null>(null);
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
   const [tiers, setTiers] = useState<TierData[]>([]);
   const [tiersLoading, setTiersLoading] = useState(true);
