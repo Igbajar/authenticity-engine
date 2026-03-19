@@ -66,6 +66,8 @@ const Results = () => {
   const [report, setReport] = useState<ScanReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedMatches, setExpandedMatches] = useState<Set<string>>(new Set());
+  const [humanizing, setHumanizing] = useState(false);
+  const [humanizedText, setHumanizedText] = useState<string | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
