@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { Document, Packer, Paragraph, TextRun } from "docx";
+import { saveAs } from "file-saver";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
