@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   FileText, Download, ArrowLeft, AlertCircle, CheckCircle2, 
-  Brain, ExternalLink, Copy, Loader2, ChevronDown, ChevronUp, BookOpen, FileDown
+  Brain, ExternalLink, Copy, Loader2, ChevronDown, ChevronUp, BookOpen, FileDown, Sparkles
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppSettings } from "@/hooks/useAppSettings";
