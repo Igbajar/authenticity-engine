@@ -179,6 +179,20 @@ const Results = () => {
     toast({ title: "Copied!", description: "Humanized text copied to clipboard" });
   };
 
+  const downloadHumanizedTxt = () => {
+    if (!humanizedText) return;
+    const blob = new Blob([humanizedText], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `humanized-${scan?.documents?.name || "document"}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: "Downloaded", description: "Humanized text saved as .txt" });
+  };
+
   const downloadTextReport = () => {
     if (!scan) return;
 
