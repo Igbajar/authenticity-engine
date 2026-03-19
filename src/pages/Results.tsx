@@ -151,6 +151,34 @@ const Results = () => {
     });
   };
 
+  const handleHumanize = async () => {
+    if (!scan?.documents?.content) return;
+    setHumanizing(true);
+    setHumanizedText(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("humanize-document", {
+        body: { content: scan.documents.content },
+      });
+      if (error) throw error;
+      if (data?.humanizedText) {
+        setHumanizedText(data.humanizedText);
+        toast({ title: "Document humanized", description: "Your rewritten text is ready below" });
+      } else {
+        throw new Error(data?.error || "Failed to humanize");
+      }
+    } catch (err: any) {
+      toast({ title: "Humanize failed", description: err.message || "Please try again", variant: "destructive" });
+    } finally {
+      setHumanizing(false);
+    }
+  };
+
+  const copyHumanizedText = () => {
+    if (!humanizedText) return;
+    navigator.clipboard.writeText(humanizedText);
+    toast({ title: "Copied!", description: "Humanized text copied to clipboard" });
+  };
+
   const downloadTextReport = () => {
     if (!scan) return;
 
