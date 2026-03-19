@@ -195,6 +195,19 @@ const Results = () => {
     toast({ title: "Downloaded", description: "Humanized text saved as .txt" });
   };
 
+  const downloadHumanizedDocx = async () => {
+    if (!humanizedText) return;
+    const paragraphs = humanizedText.split("\n").map(
+      (line) => new Paragraph({ children: [new TextRun({ text: line, font: "Arial", size: 24 })] })
+    );
+    const doc = new Document({
+      sections: [{ properties: { page: { size: { width: 12240, height: 15840 }, margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } } }, children: paragraphs }],
+    });
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, `humanized-${scan?.documents?.name || "document"}.docx`);
+    toast({ title: "Downloaded", description: "Humanized text saved as .docx" });
+  };
+
   const downloadTextReport = () => {
     if (!scan) return;
 
